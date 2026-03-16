@@ -1,0 +1,40 @@
+nodes:
+  - id: gateway
+    type: api_gateway
+    trust_level: external
+    label: Public Gateway
+    exposes_public_endpoint: true
+  - id: auth
+    type: auth_service
+    trust_level: internal
+    auth: jwt
+    authorization: role_based
+  - id: billing
+    type: microservice
+    trust_level: internal
+    auth: jwt
+    authorization: role_based
+  - id: worker
+    type: background_worker
+    trust_level: privileged
+    auth: service_account
+  - id: database
+    type: database
+    trust_level: restricted
+edges:
+  - from: gateway
+    to: auth
+    protocol: https
+    carries_identity: true
+  - from: auth
+    to: billing
+    protocol: https
+    carries_identity: true
+  - from: billing
+    to: worker
+    protocol: queue
+    queue: true
+    carries_identity: false
+  - from: worker
+    to: database
+    protocol: postgres
