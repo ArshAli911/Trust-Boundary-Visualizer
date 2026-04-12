@@ -24,7 +24,10 @@ def test_attack_path_and_identity_risk_are_detected():
 
     result = analyze_architecture(architecture)
 
-    assert result.summary.attack_paths == 1
-    assert result.summary.identity_findings == 1
+    assert result.summary.attack_paths == 2
+    assert result.summary.identity_findings == 2
     assert result.summary.escalation_findings >= 2
-    assert result.attack_paths[0].path == ["gateway", "worker", "database"]
+    assert [finding.path for finding in result.attack_paths] == [
+        ["gateway", "worker"],
+        ["gateway", "worker", "database"],
+    ]

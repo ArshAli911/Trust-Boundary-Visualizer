@@ -1,0 +1,168 @@
+nodes:
+  - id: cdn
+    type: cdn
+    trust_level: external
+    label: CDN / Edge
+    exposes_public_endpoint: true
+    tags: [edge, cache]
+
+  - id: web_app
+    type: web_frontend
+    trust_level: external
+    label: Web Storefront
+    accepts_untrusted_input: true
+    exposes_public_endpoint: true
+    tags: [frontend, react]
+
+  - id: api_gateway
+    type: api_gateway
+    trust_level: internal
+    label: API Gateway
+    auth: api_key
+    authorization: role_based
+    accepts_untrusted_input: true
+    exposes_public_endpoint: true
+
+  - id: user_service
+    type: microservice
+    trust_level: internal
+    label: User Service
+    auth: jwt
+    authorization: role_based
+    tags: [auth, users]
+
+  - id: product_catalog
+    type: microservice
+    trust_level: internal
+    label: Product Catalog
+    auth: jwt
+    authorization: role_based
+    tags: [catalog, search]
+
+  - id: order_service
+    type: microservice
+    trust_level: internal
+    label: Order Service
+    auth: jwt
+    authorization: role_based
+    tags: [orders, checkout]
+
+  - id: payment_processor
+    type: microservice
+    trust_level: privileged
+    label: Payment Processor
+    auth: mtls
+    authorization: policy_based
+    tags: [pci, payments]
+
+  - id: notification_worker
+    type: background_worker
+    trust_level: internal
+    label: Notification Worker
+    auth: service_account
+    tags: [email, sms]
+
+  - id: user_db
+    type: database
+    trust_level: restricted
+    label: User DB
+    description: Stores PII and hashed credentials
+    tags: [pii, credentials]
+
+  - id: order_db
+    type: database
+    trust_level: restricted
+    label: Order DB
+    tags: [transactions]
+
+  - id: payment_vault
+    type: database
+    trust_level: restricted
+    label: Payment Vault
+    description: PCI-DSS compliant card-data vault
+    tags: [pci, secrets]
+
+  - id: cache
+    type: cache
+    trust_level: internal
+    label: Redis Cache
+    auth: none
+    tags: [sessions, rate-limiting]
+
+edges:
+  - from: cdn
+    to: web_app
+    protocol: https
+    carries_identity: false
+    label: static assets
+
+  - from: web_app
+    to: api_gateway
+    protocol: https
+    carries_identity: true
+    label: REST calls
+
+  - from: api_gateway
+    to: user_service
+    protocol: https
+    carries_identity: true
+    label: auth & profile
+
+  - from: api_gateway
+    to: product_catalog
+    protocol: https
+    carries_identity: true
+    label: browse / search
+
+  - from: api_gateway
+    to: order_service
+    protocol: https
+    carries_identity: true
+    label: checkout flow
+
+  - from: order_service
+    to: payment_processor
+    protocol: https
+    carries_identity: true
+    data_classification: pci
+    transforms_input: true
+    label: charge request
+
+  - from: order_service
+    to: notification_worker
+    protocol: queue
+    queue: true
+    carries_identity: false
+    label: order confirmation
+
+  - from: user_service
+    to: user_db
+    protocol: postgres
+    carries_identity: false
+    data_classification: pii
+    label: read / write users
+
+  - from: order_service
+    to: order_db
+    protocol: postgres
+    carries_identity: false
+    label: persist orders
+
+  - from: payment_processor
+    to: payment_vault
+    protocol: postgres
+    carries_identity: false
+    data_classification: pci
+    label: tokenised cards
+
+  - from: api_gateway
+    to: cache
+    protocol: redis
+    carries_identity: false
+    label: session & rate-limit
+
+  - from: user_service
+    to: cache
+    protocol: redis
+    carries_identity: false
+    label: session lookup

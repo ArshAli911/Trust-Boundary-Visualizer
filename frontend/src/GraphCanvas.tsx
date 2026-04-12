@@ -67,7 +67,7 @@ export default function GraphCanvas({ nodes, edges }: GraphCanvasProps) {
             width: 60,
             height: 60,
             "text-wrap": "wrap",
-            "text-max-width": 72
+            "text-max-width": "72"
           }
         },
         {
@@ -97,7 +97,7 @@ export default function GraphCanvas({ nodes, edges }: GraphCanvasProps) {
             "font-size": 10,
             "text-background-color": "#111724",
             "text-background-opacity": 0.75,
-            "text-background-padding": 2
+            "text-background-padding": "2"
           }
         },
         {

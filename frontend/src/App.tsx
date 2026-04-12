@@ -1,4 +1,4 @@
-import { FormEvent, startTransition, useEffect, useState } from "react";
+import { ChangeEvent, FormEvent, startTransition, useEffect, useState } from "react";
 
 import GraphCanvas from "./GraphCanvas";
 import type { AnalysisResponse } from "./types";
@@ -50,6 +50,8 @@ export default function App() {
   const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadedFileName, setLoadedFileName] = useState<string | null>(null);
+  const [layoutVersion, setLayoutVersion] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -100,6 +102,7 @@ export default function App() {
       const payload = (await response.json()) as AnalysisResponse;
       startTransition(() => {
         setAnalysis(payload);
+        setLayoutVersion((current) => current + 1);
       });
     } catch (caught) {
       setAnalysis(null);
@@ -107,6 +110,43 @@ export default function App() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleFileImport(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      const normalizedName = file.name.toLowerCase();
+      const inferredFormat = normalizedName.endsWith(".json")
+        ? "json"
+        : normalizedName.endsWith(".yaml") || normalizedName.endsWith(".yml")
+          ? "yaml"
+          : "auto";
+
+      setDocument(text);
+      setFormat(inferredFormat);
+      setLoadedFileName(file.name);
+      setError(null);
+    } catch {
+      setError("Unable to read the selected file.");
+    } finally {
+      event.target.value = "";
+    }
+  }
+
+  function handleLoadSample() {
+    setDocument(fallbackDocument);
+    setFormat("yaml");
+    setLoadedFileName(null);
+    setError(null);
+  }
+
+  function handleResetLayout() {
+    setLayoutVersion((current) => current + 1);
   }
 
   return (
@@ -129,18 +169,39 @@ export default function App() {
             <span className="status">{loading ? "Analyzing..." : "Ready"}</span>
           </div>
           <form onSubmit={handleAnalyze}>
-            <label className="field-label" htmlFor="format">
-              Format
-            </label>
-            <select
-              id="format"
-              value={format}
-              onChange={(event) => setFormat(event.target.value as "auto" | "yaml" | "json")}
-            >
-              <option value="yaml">YAML</option>
-              <option value="json">JSON</option>
-              <option value="auto">Auto Detect</option>
-            </select>
+            <div className="field-row">
+              <div>
+                <label className="field-label" htmlFor="format">
+                  Format
+                </label>
+                <select
+                  id="format"
+                  value={format}
+                  onChange={(event) => setFormat(event.target.value as "auto" | "yaml" | "json")}
+                >
+                  <option value="yaml">YAML</option>
+                  <option value="json">JSON</option>
+                  <option value="auto">Auto Detect</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="field-label" htmlFor="architecture-file">
+                  Import File
+                </label>
+                <label className="file-picker" htmlFor="architecture-file">
+                  <span>{loadedFileName ?? "Choose YAML or JSON file"}</span>
+                  <strong>Browse</strong>
+                </label>
+                <input
+                  id="architecture-file"
+                  className="visually-hidden"
+                  type="file"
+                  accept=".yaml,.yml,.json,application/json,text/yaml,text/x-yaml"
+                  onChange={handleFileImport}
+                />
+              </div>
+            </div>
 
             <label className="field-label" htmlFor="document">
               Architecture Definition
@@ -152,9 +213,14 @@ export default function App() {
               spellCheck={false}
             />
 
-            <button className="primary-button" type="submit" disabled={loading}>
-              {loading ? "Running Analysis" : "Analyze Architecture"}
-            </button>
+            <div className="action-row">
+              <button className="primary-button" type="submit" disabled={loading}>
+                {loading ? "Running Analysis" : "Analyze Architecture"}
+              </button>
+              <button className="secondary-button" type="button" onClick={handleLoadSample}>
+                Load Sample
+              </button>
+            </div>
           </form>
           {error ? <p className="error-banner">{error}</p> : null}
         </section>
@@ -162,15 +228,29 @@ export default function App() {
         <section className="panel graph-panel">
           <div className="panel-heading">
             <h2>Topology Graph</h2>
-            <div className="legend">
-              <span className="legend-chip external">External</span>
-              <span className="legend-chip internal">Internal</span>
-              <span className="legend-chip privileged">Privileged</span>
-              <span className="legend-chip restricted">Restricted</span>
+            <div className="graph-toolbar">
+              <div className="legend">
+                <span className="legend-chip external">External</span>
+                <span className="legend-chip internal">Internal</span>
+                <span className="legend-chip privileged">Privileged</span>
+                <span className="legend-chip restricted">Restricted</span>
+              </div>
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={handleResetLayout}
+                disabled={!analysis}
+              >
+                Reset Layout
+              </button>
             </div>
           </div>
           {analysis ? (
-            <GraphCanvas nodes={analysis.graph.nodes} edges={analysis.graph.edges} />
+            <GraphCanvas
+              key={layoutVersion}
+              nodes={analysis.graph.nodes}
+              edges={analysis.graph.edges}
+            />
           ) : (
             <div className="empty-state">Run an analysis to render the architecture graph.</div>
           )}
