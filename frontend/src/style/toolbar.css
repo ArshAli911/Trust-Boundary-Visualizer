@@ -1,0 +1,83 @@
+.graph-toolbar-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+    padding: 10px 14px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.toolbar-left,
+.toolbar-right {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.toolbar-btn {
+    border: 1px solid rgba(157, 175, 220, 0.18);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    color: #e0e8ff;
+    padding: 8px 14px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.toolbar-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(157, 175, 220, 0.35);
+}
+
+.toolbar-btn.primary {
+    background: linear-gradient(90deg, #6de0c5 0%, #2f5fd0 100%);
+    color: #06101c;
+    border-color: transparent;
+    font-weight: 700;
+}
+
+.toolbar-btn.primary:hover:not(:disabled) {
+    opacity: 0.9;
+}
+
+.toolbar-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.toolbar-badge {
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    color: #cfd8f5;
+    font-size: 0.82rem;
+}
+
+.toolbar-select-group {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.toolbar-select-group select {
+    min-width: 150px;
+    padding: 8px 12px;
+    border-radius: 12px;
+}
+
+.edge-builder {
+    margin-bottom: 12px;
+    padding: 10px 14px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}

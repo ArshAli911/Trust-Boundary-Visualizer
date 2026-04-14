@@ -1,0 +1,15 @@
+.graph-workspace {
+    flex: 1;
+    display: flex;
+    position: relative;
+    min-height: 620px;
+    gap: 0;
+}
+
+.graph-canvas {
+    flex: 1;
+    min-height: 620px;
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0)), rgba(8, 12, 21, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}

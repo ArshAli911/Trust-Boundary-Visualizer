@@ -1,0 +1,87 @@
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.summary-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 16px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.summary-card span {
+    color: #bcc8e7;
+}
+
+.summary-card strong {
+    font-size: 1.5rem;
+}
+
+.findings-section {
+    margin-top: 20px;
+}
+
+.finding-list {
+    display: grid;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.finding-card {
+    padding: 16px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.finding-card p {
+    margin: 10px 0 0;
+    color: #d2dbf4;
+}
+
+.finding-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: center;
+}
+
+.severity {
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+}
+
+.severity-critical {
+    background: rgba(255, 109, 138, 0.18);
+    color: #ffb7c4;
+}
+
+.severity-high {
+    background: rgba(255, 152, 97, 0.18);
+    color: #ffcfb2;
+}
+
+.severity-medium {
+    background: rgba(255, 230, 128, 0.18);
+    color: #ffe680;
+}
+
+.severity-low,
+.severity-report {
+    background: rgba(109, 224, 197, 0.16);
+    color: #9cefdc;
+}
+
+.recommendation {
+    color: #9cefdc;
+}
