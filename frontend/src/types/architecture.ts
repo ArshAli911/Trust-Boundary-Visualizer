@@ -1,6 +1,6 @@
 export type TrustLevel = "external" | "internal" | "privileged" | "restricted";
 
-export type IdentityMechanism = "jwt" | "mtls" | "api key" | "service account" | "none";
+export type IdentityMechanism = "jwt" | "mtls" | "api key" | "serviceaccount" | "none";
 
 export type AuthorizationModel = "role based" | "attribute based" | "policy based" | "none";
 

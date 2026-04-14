@@ -101,7 +101,7 @@ import cytoscape, { type Core, type EventObject } from "cytoscape";
 // @ts-expect-error — no bundled types for edgehandles
 import edgehandles from "cytoscape-edgehandles";
 
-import type { ArchitectureNode } from "../types/architechture";
+import type { ArchitectureNode } from "../types/architecture";
 import type { GraphEdge, GraphNode } from "../types/graph";
 
 cytoscape.use(edgehandles);
@@ -311,7 +311,7 @@ import GraphToolbar from "./GraphToolbar";
 import NodeEditor from "./NodeEditor";
 import EdgeEditor from "./EdgeEditor";
 import FindingsPanel from "./FindingsPanel";
-import { useArchitecture } from "../hooks/useArchitechture";
+import { useArchitecture } from "../hooks/useArchitecture";
 import { useSelection } from "../hooks/useSelection";
 import { useAnalysis } from "../hooks/useAnalysis";
 import { buildGraph } from "../utils/buildGraph";
@@ -371,7 +371,7 @@ export default function App() {
   function handleResetLayout() { graphRef.current?.reLayout(); }
 
   // --- Node / Edge mutation wrappers ---
-  function updateNode(updated: import("../types/architechture").ArchitectureNode) {
+  function updateNode(updated: import("../types/architecture").ArchitectureNode) {
     const newId = arch.updateNode(updated, sel.selectedNodeId!);
     if (newId !== sel.selectedNodeId) sel.setSelectedNodeId(newId);
   }
@@ -381,7 +381,7 @@ export default function App() {
     sel.deselectAll();
   }
 
-  function updateEdge(updated: import("../types/architechture").ArchitectureEdge) {
+  function updateEdge(updated: import("../types/architecture").ArchitectureEdge) {
     if (!sel.selectedEdgeKey) return;
     arch.updateEdge(updated, sel.selectedEdgeKey);
     sel.setSelectedEdgeKey({ from: updated.from, to: updated.to });

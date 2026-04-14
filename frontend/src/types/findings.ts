@@ -1,4 +1,4 @@
-import type { TrustLevel } from "./architechture";
+import type { TrustLevel } from "./architecture";
 
 export interface BoundaryFinding {
     source: string; target: string;

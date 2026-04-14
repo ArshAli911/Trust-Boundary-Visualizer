@@ -32,15 +32,15 @@ export function useSelection() {
 
 ---
 
-## 13. `hooks/useArchitechture.ts`
+## 13. `hooks/useArchitecture.ts`
 
 ```typescript
 import { useState } from "react";
-import type { ArchitectureDocument, ArchitectureNode, ArchitectureEdge } from "../types/architechture";
+import type { ArchitectureDocument, ArchitectureNode, ArchitectureEdge } from "../types/architecture";
 import { clone } from "../utils/clone";
 import { createNodeIdFromBase, createLabelFromBase } from "../utils/ids";
 import { NODE_LIBRARY } from "../constants/nodelibrary";
-import { sampleArchitecture } from "../constants/sampleArchitechture";
+import { sampleArchitecture } from "../constants/sampleArchitecture";
 
 export function useArchitecture() {
   const [architecture, setArchitecture] = useState<ArchitectureDocument>(() => clone(sampleArchitecture));
@@ -162,7 +162,7 @@ export function useArchitecture() {
 import { useState } from "react";
 import type { AnalysisResponse } from "../types/api";
 import { analyzeArchitecture } from "../api/analyze";
-import type { ArchitectureDocument } from "../types/architechture";
+import type { ArchitectureDocument } from "../types/architecture";
 
 export function useAnalysis() {
   const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null);
@@ -355,7 +355,7 @@ export default function ImportModal({ onImport, onClose }: ImportModalProps) {
 ## 18. `components/NodeEditor.tsx`
 
 ```tsx
-import type { ArchitectureNode, TrustLevel, IdentityMechanism, AuthorizationModel } from "../types/architechture";
+import type { ArchitectureNode, TrustLevel, IdentityMechanism, AuthorizationModel } from "../types/architecture";
 import { TRUST_LEVELS, IDENTITY_MECHANISMS, AUTHORIZATION_MODELS, NODE_TYPE_SUGGESTIONS } from "../constants/enums";
 
 interface NodeEditorProps {
@@ -422,7 +422,7 @@ export default function NodeEditor({ node, onUpdate, onDelete, onClose }: NodeEd
 ## 19. `components/EdgeEditor.tsx`
 
 ```tsx
-import type { ArchitectureEdge } from "../types/architechture";
+import type { ArchitectureEdge } from "../types/architecture";
 import { PROTOCOL_SUGGESTIONS } from "../constants/enums";
 
 interface EdgeEditorProps {

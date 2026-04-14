@@ -1,11 +1,11 @@
 # Frontend Code Guide — What Goes In Each File
 
 > [!NOTE]
-> Your filenames use `architechture` (typo). I'll match your naming. Also [main.tsx](file:///d:/Extras/Trust-Boundary-Visualizer/frontend/src/main.tsx) has a bug — `import { ReactDOM } from "react"` should be `import ReactDOM from "react-dom/client"`.
+> Your filenames use `architecture` (typo). I'll match your naming. Also [main.tsx](file:///d:/Extras/Trust-Boundary-Visualizer/frontend/src/main.tsx) has a bug — `import { ReactDOM } from "react"` should be `import ReactDOM from "react-dom/client"`.
 
 ---
 
-## 1. `types/architechture.ts`
+## 1. `types/architecture.ts`
 
 ```typescript
 export type TrustLevel = "external" | "internal" | "privileged" | "restricted";
@@ -48,7 +48,7 @@ export interface ArchitectureDocument {
 ## 2. [types/graph.ts](file:///d:/Extras/Trust-Boundary-Visualizer/frontend/src/types/graph.ts)
 
 ```typescript
-import type { TrustLevel, IdentityMechanism, AuthorizationModel } from "./architechture";
+import type { TrustLevel, IdentityMechanism, AuthorizationModel } from "./architecture";
 
 export interface GraphNode {
   id: string;
@@ -76,7 +76,7 @@ export interface GraphEdge {
 ## 3. [types/findings.ts](file:///d:/Extras/Trust-Boundary-Visualizer/frontend/src/types/findings.ts)
 
 ```typescript
-import type { TrustLevel } from "./architechture";
+import type { TrustLevel } from "./architecture";
 
 export interface BoundaryFinding {
   source: string; target: string;
@@ -110,7 +110,7 @@ export interface ReportEntry {
 ## 4. [types/api.ts](file:///d:/Extras/Trust-Boundary-Visualizer/frontend/src/types/api.ts)
 
 ```typescript
-import type { ArchitectureDocument } from "./architechture";
+import type { ArchitectureDocument } from "./architecture";
 import type { GraphNode, GraphEdge } from "./graph";
 import type { BoundaryFinding, AttackPathFinding, IdentityFinding, EscalationFinding, ReportEntry } from "./findings";
 
@@ -135,7 +135,7 @@ export interface AnalysisResponse {
 ## 5. `constants/enums.ts`
 
 ```typescript
-import type { TrustLevel, IdentityMechanism, AuthorizationModel } from "../types/architechture";
+import type { TrustLevel, IdentityMechanism, AuthorizationModel } from "../types/architecture";
 
 export const TRUST_LEVELS: TrustLevel[] = ["external", "internal", "privileged", "restricted"];
 export const IDENTITY_MECHANISMS: IdentityMechanism[] = ["jwt", "mtls", "api_key", "service_account", "none"];
@@ -153,7 +153,7 @@ export const PROTOCOL_SUGGESTIONS = ["https", "grpc", "queue", "amqp", "kafka", 
 ## 6. `constants/nodelibrary.ts`
 
 ```typescript
-import type { ArchitectureNode } from "../types/architechture";
+import type { ArchitectureNode } from "../types/architecture";
 
 export const NODE_LIBRARY: Array<{ key: string; label: string; node: ArchitectureNode }> = [
   {
@@ -193,10 +193,10 @@ export const NODE_LIBRARY: Array<{ key: string; label: string; node: Architectur
 
 ---
 
-## 7. `constants/sampleArchitechture.ts`
+## 7. `constants/sampleArchitecture.ts`
 
 ```typescript
-import type { ArchitectureDocument } from "../types/architechture";
+import type { ArchitectureDocument } from "../types/architecture";
 
 export const sampleArchitecture: ArchitectureDocument = {
   nodes: [
@@ -221,7 +221,7 @@ export const sampleArchitecture: ArchitectureDocument = {
 ## 8. `api/analyze.ts`
 
 ```typescript
-import type { ArchitectureDocument } from "../types/architechture";
+import type { ArchitectureDocument } from "../types/architecture";
 import type { AnalysisResponse } from "../types/api";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
@@ -265,7 +265,7 @@ export function clone<T>(value: T): T {
 ## 10. `utils/ids.ts`
 
 ```typescript
-import type { ArchitectureDocument } from "../types/architechture";
+import type { ArchitectureDocument } from "../types/architecture";
 
 export function createNodeId(arch: ArchitectureDocument): string {
   const used = new Set(arch.nodes.map((n) => n.id));
@@ -294,7 +294,7 @@ export function createLabelFromBase(baseLabel: string, nextId: string, baseId: s
 ## 11. `utils/buildGraph.ts`
 
 ```typescript
-import type { ArchitectureDocument } from "../types/architechture";
+import type { ArchitectureDocument } from "../types/architecture";
 import type { GraphNode, GraphEdge } from "../types/graph";
 
 export function buildGraph(
@@ -338,7 +338,7 @@ export function buildGraph(
 This document covers **types, constants, api, and utils** — the foundation layer with zero React dependencies.
 
 The next part will cover:
-- `hooks/useSelection.ts`, `hooks/useArchitechture.ts`, `hooks/useAnalysis.ts`
+- `hooks/useSelection.ts`, `hooks/useArchitecture.ts`, `hooks/useAnalysis.ts`
 - All 8 component files
 - All 6 CSS files
 - Fix for [main.tsx](file:///d:/Extras/Trust-Boundary-Visualizer/frontend/src/main.tsx)

@@ -8,12 +8,12 @@ nodes:
     type: auth_service
     trust_level: internal
     auth: jwt
-    authorization: role_based
+    authorization: role based
   - id: billing
     type: microservice
     trust_level: internal
     auth: jwt
-    authorization: role_based
+    authorization: role based
   - id: worker
     type: background_worker
     trust_level: privileged
