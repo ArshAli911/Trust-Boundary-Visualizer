@@ -8,6 +8,7 @@ export interface GraphNode {
   auth?: IdentityMechanism | null;
   authorization?: AuthorizationModel | null;
   flags: string[];
+  position?: { x: number; y: number };
 }
 
 
