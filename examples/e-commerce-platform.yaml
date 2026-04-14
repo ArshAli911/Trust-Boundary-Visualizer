@@ -23,6 +23,14 @@ nodes:
     accepts_untrusted_input: true
     exposes_public_endpoint: true
 
+    - id: product_catalog
+    type: microservice
+    trust_level: internal
+    label: Product Catalog
+    auth: jwt
+    authorization: role_based
+    tags: [catalog, search]
+
   - id: user_service
     type: microservice
     trust_level: internal
@@ -31,13 +39,7 @@ nodes:
     authorization: role_based
     tags: [auth, users]
 
-  - id: product_catalog
-    type: microservice
-    trust_level: internal
-    label: Product Catalog
-    auth: jwt
-    authorization: role_based
-    tags: [catalog, search]
+
 
   - id: order_service
     type: microservice

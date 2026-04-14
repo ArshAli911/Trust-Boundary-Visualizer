@@ -1,0 +1,484 @@
+# Frontend Code Guide — Part 2: Hooks, Components, Styles
+
+---
+
+## 12. `hooks/useSelection.ts`
+
+```typescript
+import { useState } from "react";
+
+export function useSelection() {
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectedEdgeKey, setSelectedEdgeKey] = useState<{ from: string; to: string } | null>(null);
+
+  function selectNode(nodeId: string) {
+    setSelectedNodeId(nodeId);
+    setSelectedEdgeKey(null);
+  }
+
+  function selectEdge(source: string, target: string) {
+    setSelectedEdgeKey({ from: source, to: target });
+    setSelectedNodeId(null);
+  }
+
+  function deselectAll() {
+    setSelectedNodeId(null);
+    setSelectedEdgeKey(null);
+  }
+
+  return { selectedNodeId, setSelectedNodeId, selectedEdgeKey, setSelectedEdgeKey, selectNode, selectEdge, deselectAll };
+}
+```
+
+---
+
+## 13. `hooks/useArchitechture.ts`
+
+```typescript
+import { useState } from "react";
+import type { ArchitectureDocument, ArchitectureNode, ArchitectureEdge } from "../types/architechture";
+import { clone } from "../utils/clone";
+import { createNodeIdFromBase, createLabelFromBase } from "../utils/ids";
+import { NODE_LIBRARY } from "../constants/nodelibrary";
+import { sampleArchitecture } from "../constants/sampleArchitechture";
+
+export function useArchitecture() {
+  const [architecture, setArchitecture] = useState<ArchitectureDocument>(() => clone(sampleArchitecture));
+  const [nodePositions, setNodePositions] = useState<Record<string, { x: number; y: number }>>({});
+  const [layoutVersion, setLayoutVersion] = useState(0);
+
+  function handleNodeMove(nodeId: string, position: { x: number; y: number }) {
+    setNodePositions((prev) => ({ ...prev, [nodeId]: position }));
+  }
+
+  function updateNode(updated: ArchitectureNode, previousId: string) {
+    const safeId = updated.id.trim() || previousId;
+    const safe = { ...updated, id: safeId };
+    setArchitecture((prev) => ({
+      ...prev,
+      nodes: prev.nodes.map((n) => (n.id === previousId ? safe : n)),
+      edges: safe.id !== previousId
+        ? prev.edges.map((e) => ({
+            ...e,
+            from: e.from === previousId ? safe.id : e.from,
+            to: e.to === previousId ? safe.id : e.to,
+          }))
+        : prev.edges,
+    }));
+    if (safe.id !== previousId) {
+      setNodePositions((prev) => {
+        const next = { ...prev };
+        if (previousId in next) {
+          next[safe.id] = next[previousId];
+          delete next[previousId];
+        }
+        return next;
+      });
+    }
+    return safe.id; // Return the new id for selection tracking
+  }
+
+  function deleteNode(nodeId: string) {
+    setArchitecture((prev) => ({
+      ...prev,
+      nodes: prev.nodes.filter((n) => n.id !== nodeId),
+      edges: prev.edges.filter((e) => e.from !== nodeId && e.to !== nodeId),
+    }));
+    setNodePositions((prev) => { const next = { ...prev }; delete next[nodeId]; return next; });
+    setLayoutVersion((v) => v + 1);
+  }
+
+  function updateEdge(updated: ArchitectureEdge, selectedEdgeKey: { from: string; to: string }) {
+    setArchitecture((prev) => ({
+      ...prev,
+      edges: prev.edges.map((e) =>
+        e.from === selectedEdgeKey.from && e.to === selectedEdgeKey.to ? updated : e
+      ),
+    }));
+  }
+
+  function deleteEdge(selectedEdgeKey: { from: string; to: string }) {
+    setArchitecture((prev) => ({
+      ...prev,
+      edges: prev.edges.filter((e) => !(e.from === selectedEdgeKey.from && e.to === selectedEdgeKey.to)),
+    }));
+    setLayoutVersion((v) => v + 1);
+  }
+
+  function addNode(templateKey: string, cyExtent?: { x1: number; y1: number; w: number; h: number }) {
+    const template = NODE_LIBRARY.find((e) => e.key === templateKey);
+    if (!template) return null;
+    const nextId = createNodeIdFromBase(architecture, template.node.id);
+    const nextPosition = cyExtent
+      ? { x: cyExtent.x1 + cyExtent.w / 2 + (Math.random() - 0.5) * 120, y: cyExtent.y1 + cyExtent.h / 2 + (Math.random() - 0.5) * 120 }
+      : undefined;
+    const newNode: ArchitectureNode = {
+      ...template.node,
+      id: nextId,
+      label: createLabelFromBase(template.node.label ?? template.label, nextId, template.node.id),
+    };
+    setArchitecture((prev) => ({ ...prev, nodes: [...prev.nodes, newNode] }));
+    if (nextPosition) setNodePositions((prev) => ({ ...prev, [nextId]: nextPosition }));
+    return nextId;
+  }
+
+  function addEdge(sourceId: string, targetId: string) {
+    if (!sourceId || !targetId || sourceId === targetId) return;
+    const exists = architecture.edges.some((e) => e.from === sourceId && e.to === targetId);
+    if (exists) return;
+    const newEdge: ArchitectureEdge = {
+      from: sourceId, to: targetId, protocol: "https", label: "",
+      data_classification: "", carries_identity: true, transforms_input: false, queue: false,
+    };
+    setArchitecture((prev) => ({ ...prev, edges: [...prev.edges, newEdge] }));
+    setLayoutVersion((v) => v + 1);
+  }
+
+  function loadSample() {
+    setArchitecture(clone(sampleArchitecture));
+    setNodePositions({});
+    setLayoutVersion((v) => v + 1);
+  }
+
+  function loadFromAnalysis(arch: ArchitectureDocument) {
+    setArchitecture(clone(arch));
+    setNodePositions({});
+    setLayoutVersion((v) => v + 1);
+  }
+
+  return {
+    architecture, setArchitecture, nodePositions, setNodePositions, layoutVersion, setLayoutVersion,
+    handleNodeMove, updateNode, deleteNode, updateEdge, deleteEdge,
+    addNode, addEdge, loadSample, loadFromAnalysis,
+  };
+}
+```
+
+---
+
+## 14. `hooks/useAnalysis.ts`
+
+```typescript
+import { useState } from "react";
+import type { AnalysisResponse } from "../types/api";
+import { analyzeArchitecture } from "../api/analyze";
+import type { ArchitectureDocument } from "../types/architechture";
+
+export function useAnalysis() {
+  const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function analyze(architecture: ArchitectureDocument) {
+    setLoading(true);
+    setError(null);
+    try {
+      const payload = await analyzeArchitecture({ architecture });
+      setAnalysis(payload);
+      return payload;
+    } catch (caught) {
+      setAnalysis(null);
+      setError(caught instanceof Error ? caught.message : "Analysis failed.");
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function importDocument(text: string, format: "yaml" | "json" | "auto") {
+    setLoading(true);
+    setError(null);
+    try {
+      const payload = await analyzeArchitecture({ document: text, format });
+      setAnalysis(payload);
+      return payload;
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Import failed.");
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return { analysis, loading, error, setError, analyze, importDocument };
+}
+```
+
+---
+
+## 15. `components/SummaryCard.tsx`
+
+```tsx
+export default function SummaryCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="summary-card">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+```
+
+---
+
+## 16. `components/FindingsPanel.tsx`
+
+```tsx
+import type { AnalysisResponse } from "../types/api";
+import SummaryCard from "./SummaryCard";
+
+function FindingsSection({ title, items }: {
+  title: string;
+  items: Array<{ title: string; severity: string; detail: string; recommendation?: string }>;
+}) {
+  return (
+    <section className="findings-section">
+      <h3>{title}</h3>
+      {items.length === 0 ? (
+        <div className="empty-list">No findings in this category.</div>
+      ) : (
+        <div className="finding-list">
+          {items.map((item) => (
+            <article className="finding-card" key={`${title}-${item.title}`}>
+              <div className="finding-header">
+                <strong>{item.title}</strong>
+                <span className={`severity severity-${item.severity}`}>{item.severity}</span>
+              </div>
+              <p>{item.detail}</p>
+              {item.recommendation ? <p className="recommendation">{item.recommendation}</p> : null}
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+interface FindingsPanelProps {
+  analysis: AnalysisResponse | null;
+}
+
+export default function FindingsPanel({ analysis }: FindingsPanelProps) {
+  return (
+    <section className="panel findings-panel">
+      <div className="panel-heading"><h2>Security Findings</h2></div>
+      {analysis ? (
+        <>
+          <div className="summary-grid">
+            <SummaryCard label="Nodes" value={analysis.summary.node_count} />
+            <SummaryCard label="Edges" value={analysis.summary.edge_count} />
+            <SummaryCard label="Boundaries" value={analysis.summary.trust_boundaries} />
+            <SummaryCard label="Attack Paths" value={analysis.summary.attack_paths} />
+            <SummaryCard label="Identity Risks" value={analysis.summary.identity_findings} />
+            <SummaryCard label="Escalations" value={analysis.summary.escalation_findings} />
+          </div>
+          <FindingsSection title="Attack Chains" items={analysis.attack_paths.map((f) => ({ title: f.path.join(" -> "), severity: f.severity, detail: f.rationale, recommendation: f.recommendation }))} />
+          <FindingsSection title="Trust Boundaries" items={analysis.trust_boundaries.map((f) => ({ title: `${f.source} -> ${f.target} (${f.from_trust} -> ${f.to_trust})`, severity: f.severity, detail: f.rationale }))} />
+          <FindingsSection title="Identity Propagation" items={analysis.identity_findings.map((f) => ({ title: `${f.source} -> ${f.target}`, severity: f.severity, detail: f.rationale, recommendation: f.recommendation }))} />
+          <FindingsSection title="Privilege Escalation" items={analysis.escalation_findings.map((f) => ({ title: `${f.pattern} :: ${f.path.join(" -> ")}`, severity: f.severity, detail: f.rationale, recommendation: f.recommendation }))} />
+          <FindingsSection title="Attack Chain Report" items={analysis.report.map((e) => ({ title: e.title, severity: "report", detail: e.risk, recommendation: e.recommendation }))} />
+        </>
+      ) : (
+        <div className="empty-state">
+          Build a graph visually, then run analysis to detect escalation paths and trust-boundary issues.
+        </div>
+      )}
+    </section>
+  );
+}
+```
+
+---
+
+## 17. `components/ImportModal.tsx`
+
+```tsx
+import { ChangeEvent, useRef, useState } from "react";
+
+interface ImportModalProps {
+  onImport: (text: string, format: "yaml" | "json" | "auto") => void;
+  onClose: () => void;
+}
+
+export default function ImportModal({ onImport, onClose }: ImportModalProps) {
+  const [importText, setImportText] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    file.text().then((text) => {
+      const name = file.name.toLowerCase();
+      const fmt: "yaml" | "json" | "auto" = name.endsWith(".json") ? "json" : name.endsWith(".yaml") || name.endsWith(".yml") ? "yaml" : "auto";
+      onImport(text, fmt);
+      onClose();
+    });
+    event.target.value = "";
+  }
+
+  function handlePasteSubmit() {
+    if (!importText.trim()) return;
+    onImport(importText, "auto");
+    onClose();
+  }
+
+  return (
+    <div className="import-overlay" onClick={onClose}>
+      <div className="import-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="inspector-header">
+          <h3>Import Architecture</h3>
+          <button className="inspector-close" type="button" onClick={onClose} aria-label="Close">&#x2715;</button>
+        </div>
+        <p className="import-hint">Paste YAML or JSON, or pick a file.</p>
+        <textarea
+          className="import-textarea"
+          value={importText}
+          onChange={(e) => setImportText(e.target.value)}
+          placeholder={"nodes:\n  - id: gateway\n    type: api_gateway\n    trust_level: external\nedges:\n  - from: gateway\n    to: auth\n    protocol: https"}
+          spellCheck={false}
+        />
+        <div className="import-actions">
+          <button className="primary-button" type="button" onClick={handlePasteSubmit} disabled={!importText.trim()}>Load Pasted</button>
+          <label className="secondary-button import-file-btn">
+            Browse File
+            <input ref={fileInputRef} className="visually-hidden" type="file" accept=".yaml,.yml,.json" onChange={handleFileChange} />
+          </label>
+        </div>
+      </div>
+    </div>
+  );
+}
+```
+
+---
+
+## 18. `components/NodeEditor.tsx`
+
+```tsx
+import type { ArchitectureNode, TrustLevel, IdentityMechanism, AuthorizationModel } from "../types/architechture";
+import { TRUST_LEVELS, IDENTITY_MECHANISMS, AUTHORIZATION_MODELS, NODE_TYPE_SUGGESTIONS } from "../constants/enums";
+
+interface NodeEditorProps {
+  node: ArchitectureNode;
+  onUpdate: (updated: ArchitectureNode) => void;
+  onDelete: (nodeId: string) => void;
+  onClose: () => void;
+}
+
+export default function NodeEditor({ node, onUpdate, onDelete, onClose }: NodeEditorProps) {
+  function set<K extends keyof ArchitectureNode>(key: K, value: ArchitectureNode[K]) {
+    onUpdate({ ...node, [key]: value });
+  }
+
+  return (
+    <div className="inspector-panel" onClick={(e) => e.stopPropagation()}>
+      <div className="inspector-header">
+        <h3>Node Inspector</h3>
+        <button className="inspector-close" type="button" onClick={onClose} aria-label="Close">&#x2715;</button>
+      </div>
+      <div className="inspector-body">
+        <div className="editor-grid">
+          <label><span className="field-label">Id</span><input type="text" value={node.id} onChange={(e) => set("id", e.target.value)} /></label>
+          <label><span className="field-label">Label</span><input type="text" value={node.label ?? ""} onChange={(e) => set("label", e.target.value)} /></label>
+          <label><span className="field-label">Type</span><input list="node-type-options" type="text" value={node.type} onChange={(e) => set("type", e.target.value)} /></label>
+          <label><span className="field-label">Trust Level</span>
+            <select value={node.trust_level} onChange={(e) => set("trust_level", e.target.value as TrustLevel)}>
+              {TRUST_LEVELS.map((tl) => <option key={tl} value={tl}>{tl}</option>)}
+            </select>
+          </label>
+          <label><span className="field-label">Auth</span>
+            <select value={node.auth ?? ""} onChange={(e) => set("auth", e.target.value ? (e.target.value as IdentityMechanism) : null)}>
+              <option value="">Not set</option>
+              {IDENTITY_MECHANISMS.map((m) => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </label>
+          <label><span className="field-label">Authorization</span>
+            <select value={node.authorization ?? ""} onChange={(e) => set("authorization", e.target.value ? (e.target.value as AuthorizationModel) : null)}>
+              <option value="">Not set</option>
+              {AUTHORIZATION_MODELS.map((m) => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </label>
+          <label className="editor-span"><span className="field-label">Description</span><textarea className="mini-textarea" value={node.description ?? ""} onChange={(e) => set("description", e.target.value)} /></label>
+          <label className="editor-span"><span className="field-label">Tags</span><input type="text" value={node.tags.join(", ")} onChange={(e) => set("tags", e.target.value.split(",").map((t) => t.trim()).filter(Boolean))} placeholder="edge, payments, identity" /></label>
+        </div>
+        <div className="checkbox-row" style={{ marginTop: 12 }}>
+          <label className="check-pill"><input type="checkbox" checked={node.accepts_untrusted_input} onChange={(e) => set("accepts_untrusted_input", e.target.checked)} /><span>Accepts untrusted input</span></label>
+          <label className="check-pill"><input type="checkbox" checked={node.exposes_public_endpoint} onChange={(e) => set("exposes_public_endpoint", e.target.checked)} /><span>Exposes public endpoint</span></label>
+        </div>
+        <div className="inspector-actions">
+          <button className="danger-button" type="button" onClick={() => onDelete(node.id)}>Delete Node</button>
+        </div>
+      </div>
+      <datalist id="node-type-options">
+        {NODE_TYPE_SUGGESTIONS.map((t) => <option key={t} value={t} />)}
+      </datalist>
+    </div>
+  );
+}
+```
+
+---
+
+## 19. `components/EdgeEditor.tsx`
+
+```tsx
+import type { ArchitectureEdge } from "../types/architechture";
+import { PROTOCOL_SUGGESTIONS } from "../constants/enums";
+
+interface EdgeEditorProps {
+  edge: ArchitectureEdge;
+  nodeIds: string[];
+  onUpdate: (updated: ArchitectureEdge) => void;
+  onDelete: () => void;
+  onClose: () => void;
+}
+
+export default function EdgeEditor({ edge, nodeIds, onUpdate, onDelete, onClose }: EdgeEditorProps) {
+  function set<K extends keyof ArchitectureEdge>(key: K, value: ArchitectureEdge[K]) {
+    onUpdate({ ...edge, [key]: value });
+  }
+
+  return (
+    <div className="inspector-panel" onClick={(e) => e.stopPropagation()}>
+      <div className="inspector-header">
+        <h3>Edge Inspector</h3>
+        <button className="inspector-close" type="button" onClick={onClose} aria-label="Close">&#x2715;</button>
+      </div>
+      <div className="inspector-body">
+        <div className="editor-grid">
+          <label><span className="field-label">From</span>
+            <select value={edge.from} onChange={(e) => set("from", e.target.value)}>
+              {nodeIds.map((id) => <option key={id} value={id}>{id}</option>)}
+            </select>
+          </label>
+          <label><span className="field-label">To</span>
+            <select value={edge.to} onChange={(e) => set("to", e.target.value)}>
+              {nodeIds.map((id) => <option key={id} value={id}>{id}</option>)}
+            </select>
+          </label>
+          <label><span className="field-label">Protocol</span><input list="protocol-options" type="text" value={edge.protocol ?? ""} onChange={(e) => set("protocol", e.target.value)} /></label>
+          <label><span className="field-label">Label</span><input type="text" value={edge.label ?? ""} onChange={(e) => set("label", e.target.value)} /></label>
+          <label className="editor-span"><span className="field-label">Data Classification</span><input type="text" value={edge.data_classification ?? ""} onChange={(e) => set("data_classification", e.target.value)} placeholder="public, internal, restricted" /></label>
+        </div>
+        <div className="checkbox-row" style={{ marginTop: 12 }}>
+          <label className="check-pill"><input type="checkbox" checked={edge.carries_identity} onChange={(e) => set("carries_identity", e.target.checked)} /><span>Carries identity</span></label>
+          <label className="check-pill"><input type="checkbox" checked={edge.transforms_input} onChange={(e) => set("transforms_input", e.target.checked)} /><span>Transforms input</span></label>
+          <label className="check-pill"><input type="checkbox" checked={edge.queue} onChange={(e) => set("queue", e.target.checked)} /><span>Queue hop</span></label>
+        </div>
+        <div className="inspector-actions">
+          <button className="danger-button" type="button" onClick={onDelete}>Delete Edge</button>
+        </div>
+      </div>
+      <datalist id="protocol-options">
+        {PROTOCOL_SUGGESTIONS.map((p) => <option key={p} value={p} />)}
+      </datalist>
+    </div>
+  );
+}
+```
+
+---
+
+## 20. `components/GraphToolbar.tsx`
+
+See Part 3 for GraphToolbar, GraphCanvas (`components/GraphCanvas.tsx` — uses cytoscape, this is the biggest component), `components/App.tsx`, CSS files, and the [main.tsx](file:///d:/Extras/Trust-Boundary-Visualizer/frontend/src/main.tsx) fix.

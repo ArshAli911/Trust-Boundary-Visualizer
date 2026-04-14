@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import cytoscape from "cytoscape";
 
-import type { GraphEdge, GraphNode } from "./types";
+import type { GraphEdge, GraphNode } from "../types/graph";
 
 const trustColor: Record<string, string> = {
   external: "#d64545",

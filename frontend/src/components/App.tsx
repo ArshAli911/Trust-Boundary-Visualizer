@@ -1,7 +1,7 @@
 import { ChangeEvent, FormEvent, startTransition, useEffect, useState } from "react";
 
 import GraphCanvas from "./GraphCanvas";
-import type { AnalysisResponse } from "./types";
+import type { AnalysisResponse } from "../types/api";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
 
@@ -55,12 +55,14 @@ export default function App() {
 
   useEffect(() => {
     let cancelled = false;
+
     const loadSample = async () => {
       try {
         const response = await fetch(`${API_BASE}/api/v1/sample`);
         if (!response.ok) {
           return;
         }
+
         const payload = (await response.json()) as { document: string; format: "yaml" | "json" };
         if (!cancelled) {
           setDocument(payload.document);
