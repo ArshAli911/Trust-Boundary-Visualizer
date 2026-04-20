@@ -7,6 +7,7 @@ import "./style/canvas.css";
 import "./style/inspector.css";
 import "./style/finding.css";
 import "./style/modal.css";
+import "./style/picker.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

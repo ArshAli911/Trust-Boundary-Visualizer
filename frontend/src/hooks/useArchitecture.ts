@@ -22,10 +22,10 @@ export function useArchitecture() {
       nodes: prev.nodes.map((n) => (n.id === previousId ? safe : n)),
       edges: safe.id !== previousId
         ? prev.edges.map((e) => ({
-            ...e,
-            from: e.from === previousId ? safe.id : e.from,
-            to: e.to === previousId ? safe.id : e.to,
-          }))
+          ...e,
+          from: e.from === previousId ? safe.id : e.from,
+          to: e.to === previousId ? safe.id : e.to,
+        }))
         : prev.edges,
     }));
     if (safe.id !== previousId) {
@@ -68,11 +68,11 @@ export function useArchitecture() {
     setLayoutVersion((v) => v + 1);
   }
 
-  function addNode(templateKey: string, cyExtent?: { x1: number; y1: number; w: number; h: number }) {
+  function addNode(templateKey: string, cyExtent?: { x1: number; y1: number; w: number; h: number }, exactPosition?: { x: number; y: number }) {
     const template = NODE_LIBRARY.find((e) => e.key === templateKey);
     if (!template) return null;
     const nextId = createNodeIdFromBase(architecture, template.node.id);
-    const nextPosition = cyExtent
+    const nextPosition = exactPosition ? { ...exactPosition } : cyExtent
       ? { x: cyExtent.x1 + cyExtent.w / 2 + (Math.random() - 0.5) * 120, y: cyExtent.y1 + cyExtent.h / 2 + (Math.random() - 0.5) * 120 }
       : undefined;
     const newNode: ArchitectureNode = {

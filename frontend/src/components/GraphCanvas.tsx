@@ -44,10 +44,11 @@ interface GraphCanvasProps {
   onSelectEdge?: (sourceId: string, targetId: string) => void;
   onDeselectAll?: () => void;
   onAddEdge?: (sourceId: string, targetId: string) => void;
+  onDropOnBackground?: (sourceId: string, position: { x: number; y: number }) => void;
 }
 
 const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(function GraphCanvas(
-  { nodes, edges, onNodeMove, onSelectNode, onSelectEdge, onDeselectAll, onAddEdge },
+  { nodes, edges, onNodeMove, onSelectNode, onSelectEdge, onDeselectAll, onAddEdge, onDropOnBackground },
   ref
 ) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -57,11 +58,13 @@ const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(function Gra
   const onDeselectAllRef = useRef(onDeselectAll);
   const onAddEdgeRef = useRef(onAddEdge);
   const onNodeMoveRef = useRef(onNodeMove);
+  const onDropOnBackgroundRef = useRef(onDropOnBackground);
   onSelectNodeRef.current = onSelectNode;
   onSelectEdgeRef.current = onSelectEdge;
   onDeselectAllRef.current = onDeselectAll;
   onAddEdgeRef.current = onAddEdge;
   onNodeMoveRef.current = onNodeMove;
+  onDropOnBackgroundRef.current = onDropOnBackground;
 
   const nodesRef = useRef(nodes);
   const edgesRef = useRef(edges);
@@ -127,7 +130,7 @@ const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(function Gra
         { selector: 'node[flags *= "untrusted-input"]', style: { "overlay-color": "#7ce7ff", "overlay-opacity": 0.14 } },
         { selector: 'node[flags *= "attack-path"]', style: { "border-color": "#ffe680", "border-width": 5 } },
         { selector: 'node[flags *= "escalation"]', style: { "overlay-color": "#ff7a3d", "overlay-opacity": 0.16 } },
-        { selector: ".eh-handle", style: { "background-color": "#6de0c5", width: 14, height: 14, shape: "ellipse", "overlay-opacity": 0, "border-width": 2, "border-color": "#fff" } },
+        { selector: ".eh-handle", style: { "background-color": "#6de0c5", width: 18, height: 18, shape: "ellipse", "overlay-opacity": 0, "border-width": 3, "border-color": "#fff" } },
         { selector: ".eh-ghost-edge", style: { "line-color": "#6de0c5", "target-arrow-color": "#6de0c5", "line-style": "dashed", opacity: 0.6 } },
         {
           selector: "edge", style: {
@@ -152,15 +155,42 @@ const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(function Gra
     instance.on("tap", "edge", (event: EventObject) => { const d = event.target.data(); onSelectEdgeRef.current?.(d.source, d.target); });
     instance.on("tap", (event: EventObject) => { if (event.target === instance) onDeselectAllRef.current?.(); });
     instance.on("dragfree", "node", (event: EventObject) => {
-      const pos = event.target.position();
-      onNodeMoveRef.current?.(event.target.id(), { x: pos.x, y: pos.y });
+      const draggedNode = event.target;
+      const pos = draggedNode.position();
+      onNodeMoveRef.current?.(draggedNode.id(), { x: pos.x, y: pos.y });
+
+      // Proximity auto-connect: if this node has zero edges, snap to nearest node
+      const connectedEdges = draggedNode.connectedEdges().filter((e: any) => !e.hasClass("eh-ghost-edge"));
+      if (connectedEdges.length === 0) {
+        const PROXIMITY_THRESHOLD = 120;
+        let nearest: { id: string; dist: number } | null = null;
+        instance.nodes().forEach((other) => {
+          if (other.id() === draggedNode.id() || other.hasClass("eh-handle")) return;
+          const otherPos = other.position();
+          const dist = Math.sqrt((pos.x - otherPos.x) ** 2 + (pos.y - otherPos.y) ** 2);
+          if (dist < PROXIMITY_THRESHOLD && (!nearest || dist < nearest.dist)) {
+            nearest = { id: other.id(), dist };
+          }
+        });
+        if (nearest) {
+          onAddEdgeRef.current?.((nearest as { id: string; dist: number }).id, draggedNode.id());
+        }
+      }
     });
 
     const eh = (instance as any).edgehandles({
       snap: true, noEdgeEventsInDraw: true,
+      handlePosition: () => "bottom center",
+      handleSize: 18,
+      hoverDelay: 0,
       canConnect: (s: any, t: any) => s.id() !== t.id(),
       edgeParams: () => ({ data: { label: "" } }),
       complete: (s: any, t: any, added: any) => { added.remove(); onAddEdgeRef.current?.(s.id(), t.id()); },
+      cancel: (sourceNode: any, cancelledUserInputEvents: any) => {
+        if (cancelledUserInputEvents && cancelledUserInputEvents.position) {
+          onDropOnBackgroundRef.current?.(sourceNode.id(), cancelledUserInputEvents.position);
+        }
+      }
     });
 
     return () => { eh.destroy(); instance.destroy(); cyRef.current = null; };

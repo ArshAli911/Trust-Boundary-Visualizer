@@ -13,3 +13,8 @@
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0)), rgba(8, 12, 21, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.05);
 }
+
+/* Port handle glow on hover */
+.graph-canvas :global(.eh-handle) {
+    filter: drop-shadow(0 0 6px rgba(109, 224, 197, 0.6));
+}

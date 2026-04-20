@@ -1,4 +1,4 @@
-import { useMemo, useRef, startTransition } from "react";
+import { useMemo, useRef, startTransition, useState } from "react";
 import GraphCanvas, { type GraphCanvasHandle } from "./GraphCanvas";
 import GraphToolbar from "./GraphToolbar";
 import NodeEditor from "./NodeEditor";
@@ -21,6 +21,18 @@ export default function App() {
     () => buildGraph(arch.architecture, arch.nodePositions),
     [arch.architecture, arch.nodePositions]
   );
+
+  const [pendingNodeDrop, setPendingNodeDrop] = useState<{ sourceId: string; pos: { x: number; y: number } } | null>(null);
+
+  function handleFloatingNodeSelect(templateKey: string) {
+    if (!pendingNodeDrop) return;
+    const nextId = arch.addNode(templateKey, undefined, pendingNodeDrop.pos);
+    if (nextId) {
+      arch.addEdge(pendingNodeDrop.sourceId, nextId);
+      setTimeout(() => sel.selectNode(nextId), 50);
+    }
+    setPendingNodeDrop(null);
+  }
 
   // --- Toolbar handlers ---
   function handleAddNode(templateKey: string) {
@@ -125,7 +137,6 @@ export default function App() {
             edgeCount={arch.architecture.edges.length}
             loading={api.loading}
             onAddNode={handleAddNode}
-            onAddEdge={handleAddEdge}
             onAnalyze={handleAnalyze}
             onLoadSample={handleLoadSample}
             onResetLayout={handleResetLayout}
@@ -145,6 +156,7 @@ export default function App() {
               onSelectEdge={sel.selectEdge}
               onDeselectAll={sel.deselectAll}
               onAddEdge={handleAddEdge}
+              onDropOnBackground={(sourceId, pos) => setPendingNodeDrop({ sourceId, pos })}
             />
             {selectedNode && <NodeEditor node={selectedNode} onUpdate={updateNode} onDelete={deleteNode} onClose={sel.deselectAll} />}
             {selectedEdge && <EdgeEditor edge={selectedEdge} nodeIds={arch.architecture.nodes.map((n) => n.id)} onUpdate={updateEdge} onDelete={deleteEdge} onClose={sel.deselectAll} />}
@@ -153,6 +165,24 @@ export default function App() {
 
         <FindingsPanel analysis={api.analysis} />
       </main>
+
+      {pendingNodeDrop && (
+        <div className="picker-overlay" onClick={() => setPendingNodeDrop(null)}>
+          <div className="picker-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="picker-header">
+              <h3>Create & Connect Node</h3>
+              <button type="button" className="inspector-close" onClick={() => setPendingNodeDrop(null)}>&#x2715;</button>
+            </div>
+            <div className="picker-grid">
+              {NODE_LIBRARY.map((entry) => (
+                <button key={entry.key} type="button" className="picker-btn" onClick={() => handleFloatingNodeSelect(entry.key)}>
+                  {entry.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

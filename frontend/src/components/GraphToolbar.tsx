@@ -8,7 +8,6 @@ interface GraphToolbarProps {
     edgeCount: number;
     loading: boolean;
     onAddNode: (templateKey: string) => void;
-    onAddEdge: (sourceId: string, targetId: string) => void;
     onAnalyze: () => void;
     onLoadSample: () => void;
     onResetLayout: () => void;
@@ -17,19 +16,10 @@ interface GraphToolbarProps {
 
 export default function GraphToolbar({
     nodeLibrary, nodeIds, nodeCount, edgeCount, loading,
-    onAddNode, onAddEdge, onAnalyze, onLoadSample, onResetLayout, onImport,
+    onAddNode, onAnalyze, onLoadSample, onResetLayout, onImport,
 }: GraphToolbarProps) {
     const [showImport, setShowImport] = useState(false);
     const [nextNodeType, setNextNodeType] = useState(nodeLibrary[0]?.key ?? "");
-    const [edgeSource, setEdgeSource] = useState("");
-    const [edgeTarget, setEdgeTarget] = useState("");
-
-    function handleAddEdgeSubmit() {
-        if (!edgeSource || !edgeTarget) return;
-        onAddEdge(edgeSource, edgeTarget);
-        setEdgeSource("");
-        setEdgeTarget("");
-    }
 
     return (
         <>
@@ -56,22 +46,7 @@ export default function GraphToolbar({
                 </div>
             </div>
 
-            <div className="edge-builder">
-                <div className="toolbar-select-group">
-                    <select value={edgeSource} onChange={(e) => setEdgeSource(e.target.value)}>
-                        <option value="">From node</option>
-                        {nodeIds.map((id) => <option key={id} value={id}>{id}</option>)}
-                    </select>
-                    <select value={edgeTarget} onChange={(e) => setEdgeTarget(e.target.value)}>
-                        <option value="">To node</option>
-                        {nodeIds.map((id) => <option key={id} value={id}>{id}</option>)}
-                    </select>
-                    <button className="toolbar-btn" type="button" onClick={handleAddEdgeSubmit}
-                        disabled={!edgeSource || !edgeTarget || edgeSource === edgeTarget}>
-                        Add Edge
-                    </button>
-                </div>
-            </div>
+
 
             {showImport && (
                 <ImportModal onImport={onImport} onClose={() => setShowImport(false)} />
