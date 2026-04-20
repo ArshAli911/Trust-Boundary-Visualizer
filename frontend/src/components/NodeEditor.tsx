@@ -21,7 +21,7 @@ export default function NodeEditor({ node, onUpdate, onDelete, onClose }: NodeEd
             </div>
             <div className="inspector-body">
                 <div className="editor-grid">
-                    <label><span className="field-label">Id</span><input type="text" value={node.id} onChange={(e) => set("id", e.target.value)} /></label>
+                    <label><span className="field-label">Id</span><input type="text" value={node.id} readOnly title="System managed identifier" style={{ opacity: 0.6, cursor: "not-allowed" }} /></label>
                     <label><span className="field-label">Label</span><input type="text" value={node.label ?? ""} onChange={(e) => set("label", e.target.value)} /></label>
                     <label><span className="field-label">Type</span><input list="node-type-options" type="text" value={node.type} onChange={(e) => set("type", e.target.value)} /></label>
                     <label><span className="field-label">Trust Level</span>
