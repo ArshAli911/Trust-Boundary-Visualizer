@@ -14,14 +14,29 @@ export async function analyzeArchitecture(body: {
   document?: string;
   format?: string;
 }): Promise<AnalysisResponse> {
-  const res = await fetch(`${API_BASE}/api/v1/analyze`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}/api/v1/analyze`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new Error(
+      `Cannot connect to backend at ${API_BASE}. Make sure the server is running.`
+    );
+  }
   if (!res.ok) {
-    const payload = (await res.json()) as { detail?: string };
-    throw new Error(payload.detail ?? "Analysis failed.");
+    let detail: string | undefined;
+    try {
+      const payload = (await res.json()) as { detail?: string };
+      detail = payload.detail;
+    } catch {
+      /* response body wasn't JSON — fall through to default message */
+    }
+    throw new Error(
+      detail ?? `Server error (HTTP ${res.status}). Please try again.`
+    );
   }
   return res.json();
 }
