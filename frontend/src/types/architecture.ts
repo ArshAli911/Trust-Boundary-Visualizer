@@ -1,8 +1,8 @@
 export type TrustLevel = "external" | "internal" | "privileged" | "restricted";
 
-export type IdentityMechanism = "jwt" | "mtls" | "api key" | "serviceaccount" | "none";
+export type IdentityMechanism = "jwt" | "mtls" | "api_key" | "service_account" | "none";
 
-export type AuthorizationModel = "role based" | "attribute based" | "policy based" | "none";
+export type AuthorizationModel = "role_based" | "attribute_based" | "policy_based" | "none";
 
 export interface ArchitectureNode {
   id: string;

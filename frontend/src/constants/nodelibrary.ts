@@ -7,15 +7,15 @@ export const NODE_LIBRARY: Array<{ key: string; label: string; node: Architectur
   },
   {
     key: "auth", label: "Auth",
-    node: { id: "auth", label: "Auth", type: "auth_service", trust_level: "internal", description: "Issues and validates internal identity.", auth: "jwt", authorization: "role based", accepts_untrusted_input: false, exposes_public_endpoint: false, tags: ["identity"] }
+    node: { id: "auth", label: "Auth", type: "auth_service", trust_level: "internal", description: "Issues and validates internal identity.", auth: "jwt", authorization: "role_based", accepts_untrusted_input: false, exposes_public_endpoint: false, tags: ["identity"] }
   },
   {
     key: "service", label: "Service",
-    node: { id: "service", label: "Service", type: "microservice", trust_level: "internal", description: "Internal business logic service.", auth: "jwt", authorization: "role based", accepts_untrusted_input: false, exposes_public_endpoint: false, tags: ["app"] }
+    node: { id: "service", label: "Service", type: "microservice", trust_level: "internal", description: "Internal business logic service.", auth: "jwt", authorization: "role_based", accepts_untrusted_input: false, exposes_public_endpoint: false, tags: ["app"] }
   },
   {
     key: "worker", label: "Worker",
-    node: { id: "worker", label: "Worker", type: "background_worker", trust_level: "privileged", description: "Background processor for queued jobs.", auth: "serviceaccount", authorization: null, accepts_untrusted_input: false, exposes_public_endpoint: false, tags: ["async", "jobs"] }
+    node: { id: "worker", label: "Worker", type: "background_worker", trust_level: "privileged", description: "Background processor for queued jobs.", auth: "service_account", authorization: null, accepts_untrusted_input: false, exposes_public_endpoint: false, tags: ["async", "jobs"] }
   },
   {
     key: "database", label: "Database",
@@ -31,6 +31,6 @@ export const NODE_LIBRARY: Array<{ key: string; label: string; node: Architectur
   },
   {
     key: "control-plane", label: "Control Plane",
-    node: { id: "control-plane", label: "Control Plane", type: "control_plane_api", trust_level: "privileged", description: "Privileged orchestration or control-plane endpoint.", auth: "mtls", authorization: "policy based", accepts_untrusted_input: false, exposes_public_endpoint: false, tags: ["admin"] }
+    node: { id: "control-plane", label: "Control Plane", type: "control_plane_api", trust_level: "privileged", description: "Privileged orchestration or control-plane endpoint.", auth: "mtls", authorization: "policy_based", accepts_untrusted_input: false, exposes_public_endpoint: false, tags: ["admin"] }
   }
 ];
