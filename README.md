@@ -1,12 +1,8 @@
 # Trust Boundary Visualizer
 
-Trust Boundary Visualizer is a small full-stack project for modeling distributed systems as directed graphs and then reasoning about trust transitions, attack paths, identity propagation issues, and privilege-escalation patterns.
-
-This README is not just a setup guide. It is the project map and the working contract for how changes should be made in this repository.
+Trust Boundary Visualizer is a full-stack tool for modeling distributed systems as directed graphs and reasoning about trust transitions, attack paths, identity propagation issues, and privilege-escalation patterns. Build your architecture visually, then analyze it to surface security findings.
 
 ## Repository Structure
-
-Source files currently present in the repository:
 
 ```text
 Trust-Boundary-Visualizer/
@@ -22,230 +18,166 @@ Trust-Boundary-Visualizer/
 |   |   |-- models.py
 |   |   `-- parser.py
 |   `-- tests/
-|       `-- test_analysis.py
+|       |-- test_analysis.py
+|       |-- test_analysis_edge_cases.py
+|       `-- test_parser.py
 |-- examples/
-|   `-- sample-architecture.yaml
+|   |-- sample-architecture.yaml
+|   `-- e-commerce-platform.yaml
 `-- frontend/
     |-- index.html
     |-- package.json
     |-- tsconfig.json
     |-- vite.config.ts
     `-- src/
-        |-- App.tsx
-        |-- GraphCanvas.tsx
         |-- main.tsx
-        |-- styles.css
-        |-- types.ts
-        `-- vite-env.d.ts
+        |-- vite-env.d.ts
+        |-- api/
+        |   `-- analyze.ts
+        |-- components/
+        |   |-- App.tsx
+        |   |-- EdgeEditor.tsx
+        |   |-- FindingsPanel.tsx
+        |   |-- GraphCanvas.tsx
+        |   |-- GraphToolbar.tsx
+        |   |-- ImportModal.tsx
+        |   |-- NodeEditor.tsx
+        |   `-- SummaryCard.tsx
+        |-- constants/
+        |   |-- enums.ts
+        |   |-- nodelibrary.ts
+        |   `-- sampleArchitecture.ts
+        |-- hooks/
+        |   |-- useAnalysis.ts
+        |   |-- useArchitecture.ts
+        |   `-- useSelection.ts
+        |-- style/
+        |   |-- canvas.css
+        |   |-- finding.css
+        |   |-- index.css
+        |   |-- inspector.css
+        |   |-- modal.css
+        |   |-- picker.css
+        |   `-- toolbar.css
+        |-- types/
+        |   |-- api.ts
+        |   |-- architecture.ts
+        |   |-- findings.ts
+        |   `-- graph.ts
+        `-- utils/
+            |-- buildGraph.ts
+            |-- clone.ts
+            `-- ids.ts
 ```
-
-Non-source temporary pytest cache folders may appear under `backend/`, but they are runtime artifacts, not part of the intended source structure.
 
 ## What Each Part Does
 
 ### Backend
 
-- `backend/app/main.py`
-  - Owns the FastAPI app.
-  - Exposes:
-    - `GET /api/v1/health`
-    - `GET /api/v1/sample`
-    - `POST /api/v1/analyze`
-  - This is the API boundary. It accepts user input, parses or validates it, then hands it to the analysis layer.
-
-- `backend/app/models.py`
-  - Defines the schema for nodes, edges, requests, findings, summary objects, and graph output.
-  - This file matters because the entire backend contract is centralized here. If the schema changes, both validation and frontend typing expectations change.
-
-- `backend/app/parser.py`
-  - Converts YAML or JSON text into an `ArchitectureDocument`.
-  - This is kept separate from `main.py` so parsing logic stays reusable and testable.
-
-- `backend/app/analysis.py`
-  - Builds a directed graph with NetworkX.
-  - Runs the actual trust-boundary and attack-path heuristics.
-  - Produces the report and graph view consumed by the frontend.
-  - This is the core business logic of the repository.
-
-- `backend/tests/test_analysis.py`
-  - Smoke test for the analysis pipeline.
-  - Verifies that a minimal architecture produces attack-path, identity, and escalation findings.
+- **`app/main.py`** — FastAPI application. Exposes `GET /api/v1/health`, `GET /api/v1/sample`, and `POST /api/v1/analyze`.
+- **`app/models.py`** — Pydantic schemas for nodes, edges, requests, findings, summaries, and graph output. The entire backend contract is centralized here.
+- **`app/parser.py`** — Converts YAML or JSON text into an `ArchitectureDocument`. Kept separate so parsing logic is reusable and testable.
+- **`app/analysis.py`** — Core business logic. Builds a NetworkX directed graph, runs trust-boundary and attack-path heuristics, and produces the report and graph view consumed by the frontend.
+- **`tests/test_analysis.py`** — Smoke test verifying a minimal architecture produces attack-path, identity, and escalation findings.
+- **`tests/test_analysis_edge_cases.py`** — Edge-case coverage for the analysis pipeline.
+- **`tests/test_parser.py`** — Tests for YAML/JSON parsing.
 
 ### Frontend
 
-- `frontend/src/main.tsx`
-  - React entry point.
-  - Mounts the app and loads the global stylesheet.
+The frontend follows a modular architecture organized by concern.
 
-- `frontend/src/App.tsx`
-  - Main UI container.
-  - Fetches the sample architecture.
-  - Sends the architecture text to the backend.
-  - Renders summaries, finding sections, and the graph panel.
+#### `api/`
 
-- `frontend/src/GraphCanvas.tsx`
-  - Adapts backend graph data into Cytoscape elements.
-  - Applies graph layout and visual styling.
-  - Exists separately because graph rendering is its own concern and should not clutter `App.tsx`.
+- **`analyze.ts`** — API client. Exports `fetchSample()` and `analyzeArchitecture()` for communicating with the backend. Reads `VITE_API_BASE` for the API URL (defaults to `http://localhost:8000`).
 
-- `frontend/src/types.ts`
-  - TypeScript mirror of the backend response shape.
-  - Helps catch backend/frontend drift early during build time.
+#### `components/`
 
-- `frontend/src/styles.css`
-  - Defines the entire visual system: page layout, panels, graph canvas, findings cards, and responsive behavior.
+- **`App.tsx`** — Root component. Orchestrates architecture state, selection state, analysis calls, and renders the workspace layout with toolbar, graph canvas, inspectors, and findings panel.
+- **`GraphCanvas.tsx`** — Cytoscape-powered interactive graph renderer. Supports node dragging, edge drawing via edge handles, click-to-select, and drag-to-spawn (dropping an edge on empty space triggers a node picker).
+- **`GraphToolbar.tsx`** — Toolbar above the graph canvas. Provides controls for adding nodes from the node library, loading samples, importing YAML/JSON, running analysis, and resetting layout.
+- **`NodeEditor.tsx`** — Right-side inspector panel for editing a selected node's properties (id, label, type, trust level).
+- **`EdgeEditor.tsx`** — Right-side inspector panel for editing a selected edge's properties (endpoints, protocol, data classification, identity flags).
+- **`FindingsPanel.tsx`** — Renders analysis results: summary cards, attack paths, trust boundary crossings, identity findings, escalation findings, and the report.
+- **`ImportModal.tsx`** — Modal for importing architecture definitions from YAML or JSON text.
+- **`SummaryCard.tsx`** — Small presentational component for rendering summary metric cards.
 
-### Example and Tooling Files
+#### `hooks/`
 
-- `examples/sample-architecture.yaml`
-  - Example architecture document for manual testing.
+- **`useArchitecture.ts`** — State management for the architecture document. Handles adding, updating, and deleting nodes and edges, loading samples, and syncing with analysis results.
+- **`useAnalysis.ts`** — State management for analysis API calls. Wraps `analyze()` and `importDocument()` with loading and error state.
+- **`useSelection.ts`** — Tracks which node or edge is currently selected in the graph.
 
-- `backend/requirements.txt`
-  - Python dependencies: FastAPI, Pydantic, NetworkX, PyYAML, Uvicorn, pytest.
+#### `constants/`
 
-- `backend/pytest.ini`
-  - Local pytest configuration.
+- **`nodelibrary.ts`** — Built-in node templates (e.g., Web App, API, Database, Queue, Worker) users can drag onto the canvas.
+- **`sampleArchitecture.ts`** — Default architecture document loaded on startup.
+- **`enums.ts`** — Shared enum values for trust levels, node types, and protocols.
 
-- `frontend/package.json`
-  - Frontend scripts and dependencies.
+#### `types/`
 
-- `frontend/vite.config.ts`
-  - Vite development server configuration.
+- **`architecture.ts`** — TypeScript types for `ArchitectureDocument`, `ArchitectureNode`, and `ArchitectureEdge`.
+- **`api.ts`** — TypeScript type for `AnalysisResponse`.
+- **`findings.ts`** — TypeScript types for findings (attack paths, boundaries, identity, escalations, report entries).
+- **`graph.ts`** — TypeScript types for `GraphNode` and `GraphEdge` used by the canvas.
 
-- `frontend/tsconfig.json`
-  - TypeScript compiler configuration.
+#### `utils/`
 
-- `frontend/index.html`
-  - Vite HTML shell.
+- **`buildGraph.ts`** — Transforms an `ArchitectureDocument` into `GraphNode[]` and `GraphEdge[]` for the canvas, applying saved node positions.
+- **`ids.ts`** — Generates unique node IDs and labels when adding nodes from the library.
+- **`clone.ts`** — Deep-clone utility for immutable state updates.
 
-- `frontend/src/vite-env.d.ts`
-  - Vite TypeScript environment declarations.
+#### `style/`
+
+- **`index.css`** — Global layout, page shell, hero section, and responsive design.
+- **`canvas.css`** — Graph canvas container styles.
+- **`toolbar.css`** — Toolbar layout and button styles.
+- **`inspector.css`** — Node and edge editor panel styles.
+- **`finding.css`** — Findings cards and result panel styles.
+- **`modal.css`** — Import modal styles.
+- **`picker.css`** — Node picker overlay styles (for drag-to-spawn).
+
+### Examples
+
+- **`sample-architecture.yaml`** — Minimal architecture for quick testing.
+- **`e-commerce-platform.yaml`** — Larger multi-tier architecture example.
 
 ## Request Flow
 
-The current execution path is simple and important to understand:
+1. The user builds an architecture visually on the graph canvas (add nodes from the library, draw edges by dragging).
+2. Clicking **Analyze** calls `handleAnalyze()` in `App.tsx`.
+3. `useAnalysis.analyze()` posts the architecture document to `POST /api/v1/analyze`.
+4. `backend/app/main.py` receives the request.
+5. If raw text is provided, `parse_architecture()` in `parser.py` converts YAML/JSON into an `ArchitectureDocument`.
+6. `analyze_architecture()` in `analysis.py` builds the graph, runs all detection heuristics, and assembles the response.
+7. The frontend receives the `AnalysisResponse`.
+8. `FindingsPanel` renders summaries and findings. The graph updates with analysis-enriched data.
 
-1. The user edits architecture text in `frontend/src/App.tsx`.
-2. `handleAnalyze()` posts `{ document, format }` to `POST /api/v1/analyze`.
-3. `backend/app/main.py` receives the request.
-4. `parse_architecture()` in `backend/app/parser.py` converts YAML or JSON into an `ArchitectureDocument` when raw text is provided.
-5. `analyze_architecture()` in `backend/app/analysis.py` builds the graph, runs all detection functions, and assembles the response.
-6. The frontend receives the `AnalysisResponse`.
-7. `GraphCanvas.tsx` renders the graph, and `App.tsx` renders summaries and findings.
+## Analysis Heuristics
 
-## Functions Chosen and Why
+The backend splits detection into focused functions:
 
-The backend is intentionally split into small functions. That is the correct choice for this project because each detection rule is a separate heuristic and should remain independently understandable.
+| Function | Purpose |
+|---|---|
+| `build_graph()` | Converts architecture models into a NetworkX directed graph |
+| `detect_trust_boundaries()` | Scans edges crossing trust levels |
+| `detect_attack_paths()` | Finds shortest routes from untrusted entry points to sensitive sinks |
+| `detect_identity_findings()` | Detects dropped or missing identity at inward trust transitions |
+| `detect_privilege_escalations()` | Adds escalation heuristics on top of path analysis (queues, workers, control planes) |
+| `build_report()` | Flattens findings into a readable report |
+| `build_graph_view()` | Creates frontend-ready graph payload with styling flags |
+| `classify_boundary_severity()` | Centralizes trust-delta severity logic |
+| `find_untrusted_sources()` | Identifies graph entry points for attack-path search |
+| `recommend_for_sink()` | Attaches remediation guidance based on sink type |
+| `dedupe_paths()` / `dedupe_escalations()` | Removes duplicate findings |
 
-### `backend/app/main.py`
+## Technology Choices
 
-- `health_check()`
-  - Chosen to provide a minimal readiness endpoint.
-  - Reason: separates deployment health from application analysis behavior.
-
-- `sample_architecture()`
-  - Chosen to provide a known-good document for the frontend.
-  - Reason: removes the need to hardcode the only sample in the client.
-
-- `analyze(request)`
-  - Chosen as the single API entry for analysis.
-  - Reason: keeps parsing, validation, and analysis behind one stable endpoint.
-
-### `backend/app/parser.py`
-
-- `parse_architecture(document, format_hint)`
-  - Chosen to normalize YAML/JSON input into one internal object model.
-  - Reason: parsing is a separate responsibility from API routing and graph analysis.
-
-### `backend/app/analysis.py`
-
-- `build_graph(architecture)`
-  - Chosen to convert validated models into a NetworkX directed graph.
-  - Reason: the rest of the analysis becomes much simpler once the system is represented as a graph.
-
-- `analyze_architecture(architecture)`
-  - Chosen as the orchestration function.
-  - Reason: there needs to be one place that runs all heuristics and assembles the final response.
-
-- `detect_trust_boundaries(graph)`
-  - Chosen to scan edges crossing trust levels.
-  - Reason: trust transitions are the base security signal in this project.
-
-- `detect_attack_paths(graph)`
-  - Chosen to find shortest routes from untrusted entry points to sensitive sinks.
-  - Reason: path-based reasoning is stronger than edge-only reasoning for architecture review.
-
-- `detect_identity_findings(graph)`
-  - Chosen to detect dropped or missing identity at inward trust transitions.
-  - Reason: identity propagation mistakes are a common architectural weakness.
-
-- `detect_privilege_escalations(graph, attack_paths)`
-  - Chosen to add special-case escalation heuristics on top of generic path analysis.
-  - Reason: some routes are materially worse than others, especially queues, workers, control planes, and restricted datastores.
-
-- `build_report(...)`
-  - Chosen to flatten multiple finding types into one report list.
-  - Reason: the UI needs a readable, user-facing report format separate from raw findings.
-
-- `build_graph_view(...)`
-  - Chosen to create a frontend-ready graph payload with styling flags.
-  - Reason: the UI should not have to recompute analysis semantics from raw backend models.
-
-- `classify_boundary_severity(source, target)`
-  - Chosen to centralize boundary severity logic.
-  - Reason: trust-delta rules should not be duplicated inside detection loops.
-
-- `find_untrusted_sources(graph)`
-  - Chosen to identify graph entry points for attack-path analysis.
-  - Reason: path search needs a stable definition of where untrusted input begins.
-
-- `path_crosses_boundary(path_levels)`
-  - Chosen to ignore paths that never move inward across trust.
-  - Reason: not every path to a sink is a trust-boundary issue.
-
-- `recommend_for_sink(node_type, sink_level)`
-  - Chosen to attach basic remediation guidance based on the target reached.
-  - Reason: findings are more useful when they include an action, not just a warning.
-
-- `dedupe_paths(findings)`
-  - Chosen to avoid repeated path findings.
-  - Reason: shortest-path analysis and multi-rule detection can otherwise generate noisy duplicates.
-
-- `dedupe_escalations(findings)`
-  - Chosen to avoid repeated escalation findings.
-  - Reason: escalation heuristics overlap by design and need a cleanup pass.
-
-### `frontend/src/App.tsx`
-
-- `App()`
-  - Chosen as the single stateful page component.
-  - Reason: the app is still small enough that one top-level container keeps the flow easy to follow.
-
-- `handleAnalyze(event)`
-  - Chosen to isolate the submit behavior.
-  - Reason: async request handling should stay out of JSX markup.
-
-- `SummaryCard(...)`
-  - Chosen as a small presentational helper.
-  - Reason: repeated summary markup should not be duplicated inline.
-
-- `FindingsSection(...)`
-  - Chosen as a reusable renderer for attack paths, boundaries, identity findings, escalation findings, and report entries.
-  - Reason: the UI repeats the same list/card pattern several times.
-
-### `frontend/src/GraphCanvas.tsx`
-
-- `GraphCanvas({ nodes, edges })`
-  - Chosen as a dedicated graph renderer.
-  - Reason: Cytoscape instance lifecycle and styling are specialized enough to warrant their own component.
-
-## Why These Design Choices Make Sense
-
-- FastAPI is a good fit because the backend is schema-heavy and endpoint-light.
-- Pydantic is the right choice because the project lives on structured architecture documents.
-- NetworkX is the right choice because path and graph reasoning are central to the product.
-- React plus Vite is sufficient because the frontend is a single interactive page, not a large app shell.
-- Cytoscape is appropriate because the output is graph-native, not table-native.
+| Layer | Technology | Rationale |
+|---|---|---|
+| Backend | FastAPI + Pydantic | Schema-heavy, endpoint-light API |
+| Graph engine | NetworkX | Path and graph reasoning are central to the product |
+| Frontend | React + Vite + TypeScript | Single interactive page, fast dev iteration |
+| Graph rendering | Cytoscape.js + edgehandles | Graph-native output with interactive editing |
 
 ## How To Run
 
@@ -267,59 +199,16 @@ npm install
 npm run dev
 ```
 
-Default frontend API target:
+Default API target: `http://localhost:8000`. Override with `VITE_API_BASE` if needed.
 
-```text
-http://localhost:8000
+### Tests
+
+```powershell
+cd backend
+pytest
 ```
 
-Override with `VITE_API_BASE` if needed.
+## Current Gaps
 
-## Working Mode For This Project
-
-This repository now follows a strict learning-first workflow.
-
-When you ask for a feature, refactor, bug fix, or test update in this project, you should write the code first.
-
-### The rule
-
-1. You propose the code change.
-2. I review your code against the current repository.
-3. If your code is correct, I implement it or help integrate it.
-4. If your code is wrong, incomplete, or inconsistent with the project structure, I do not implement it.
-5. Instead, I tell you exactly where you are wrong, point you to the relevant file or function, and tell you to try again.
-
-### What counts as a valid first attempt
-
-- A concrete code block.
-- A patch or diff.
-- A specific function rewrite.
-- A specific component change.
-- A test you want added or updated.
-
-What does not count:
-
-- "Please implement X."
-- "Do it for me."
-- Vague feature descriptions without code.
-
-### What I will check before accepting your code
-
-- Does it match the current backend and frontend data flow?
-- Does it preserve the schema in `backend/app/models.py` and `frontend/src/types.ts`?
-- Does it fit the existing separation of concerns?
-- Does it break current analysis behavior?
-- Does it need tests?
-
-### How I will respond
-
-- If correct: I will implement or refine it.
-- If wrong: I will tell you the exact mistake and ask you to try again.
-
-Use this as the standing contract for collaboration in this repository.
-
-## Current Gaps You Should Know
-
-- There is only one backend test, so regression coverage is still thin.
-- The frontend types do not currently include the full `architecture` object returned by the backend.
-- The analysis engine is heuristic. It is useful for architecture review, but it is not proof of exploitability.
+- Backend test coverage is still thin (3 test files covering the core paths).
+- The analysis engine is heuristic-based. It is useful for architecture review, but does not prove exploitability.
