@@ -15,6 +15,6 @@
 }
 
 /* Port handle glow on hover */
-.graph-canvas :global(.eh-handle) {
+.graph-canvas .eh-handle {
     filter: drop-shadow(0 0 6px rgba(109, 224, 197, 0.6));
 }

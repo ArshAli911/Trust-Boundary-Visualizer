@@ -6,7 +6,11 @@ import edgehandles from "cytoscape-edgehandles";
 import type { ArchitectureNode } from "../types/architecture";
 import type { GraphEdge, GraphNode } from "../types/graph";
 
-cytoscape.use(edgehandles);
+// Guard: only register the extension once (React Strict Mode runs module init twice)
+if (!(cytoscape as any)._ehRegistered) {
+  cytoscape.use(edgehandles);
+  (cytoscape as any)._ehRegistered = true;
+}
 
 const trustColor: Record<string, string> = {
   external: "#d64545",
