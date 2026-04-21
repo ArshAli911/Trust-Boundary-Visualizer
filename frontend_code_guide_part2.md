@@ -355,7 +355,7 @@ export default function ImportModal({ onImport, onClose }: ImportModalProps) {
 ## 18. `components/NodeEditor.tsx`
 
 ```tsx
-import type { ArchitectureNode, TrustLevel, IdentityMechanism, AuthorizationModel } from "../types/architecture";
+import type { ArchitectureNode, TrustLevel, IdentityMechanism, AuthorizationModel } from "../types/architecture.ts";
 import { TRUST_LEVELS, IDENTITY_MECHANISMS, AUTHORIZATION_MODELS, NODE_TYPE_SUGGESTIONS } from "../constants/enums";
 
 interface NodeEditorProps {
