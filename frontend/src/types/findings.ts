@@ -10,12 +10,12 @@ export interface AttackPathFinding {
     path: string[]; path_trust_levels: TrustLevel[];
     source: string; sink: string;
     severity: string;
-    rationale: string; 
+    rationale: string;
     recommendation: string;
 }
 
 export interface IdentityFinding {
-    source:string;
+    source: string;
     target: string;
     severity: string;
     rationale: string;
@@ -25,6 +25,21 @@ export interface IdentityFinding {
 export interface EscalationFinding {
   path: string[]; severity: string; pattern: string;
   rationale: string; recommendation: string;
+}
+
+export interface DataExposureFinding {
+  source: string; target: string;
+  severity: string; rationale: string; recommendation: string;
+}
+
+export interface LateralMovementFinding {
+  path: string[]; trust_level: string;
+  severity: string; rationale: string; recommendation: string;
+}
+
+export interface MisconfigurationFinding {
+  node: string; pattern: string;
+  severity: string; rationale: string; recommendation: string;
 }
 
 export interface ReportEntry {

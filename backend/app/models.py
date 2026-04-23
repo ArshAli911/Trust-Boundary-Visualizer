@@ -129,6 +129,30 @@ class EscalationFinding(BaseModel):
     recommendation: str
 
 
+class DataExposureFinding(BaseModel):
+    source: str
+    target: str
+    severity: str
+    rationale: str
+    recommendation: str
+
+
+class LateralMovementFinding(BaseModel):
+    path: list[str]
+    trust_level: TrustLevel
+    severity: str
+    rationale: str
+    recommendation: str
+
+
+class MisconfigurationFinding(BaseModel):
+    node: str
+    pattern: str
+    severity: str
+    rationale: str
+    recommendation: str
+
+
 class ReportEntry(BaseModel):
     title: str
     risk: str
@@ -162,6 +186,9 @@ class AnalysisSummary(BaseModel):
     attack_paths: int
     identity_findings: int
     escalation_findings: int
+    data_exposure_findings: int
+    lateral_movement_findings: int
+    misconfiguration_findings: int
 
 
 class AnalysisResponse(BaseModel):
@@ -171,5 +198,8 @@ class AnalysisResponse(BaseModel):
     attack_paths: list[AttackPathFinding]
     identity_findings: list[IdentityFinding]
     escalation_findings: list[EscalationFinding]
+    data_exposure_findings: list[DataExposureFinding]
+    lateral_movement_findings: list[LateralMovementFinding]
+    misconfiguration_findings: list[MisconfigurationFinding]
     report: list[ReportEntry]
     graph: dict[str, list[GraphNodeView] | list[GraphEdgeView]]

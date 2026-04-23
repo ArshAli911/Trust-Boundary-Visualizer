@@ -10,10 +10,13 @@ from .models import (
     ArchitectureDocument,
     AttackPathFinding,
     BoundaryFinding,
+    DataExposureFinding,
     EscalationFinding,
     GraphEdgeView,
     GraphNodeView,
     IdentityFinding,
+    LateralMovementFinding,
+    MisconfigurationFinding,
     ReportEntry,
     TrustLevel,
 )
@@ -27,6 +30,8 @@ TRUST_ORDER = {
 
 SENSITIVE_LEVELS = {TrustLevel.PRIVILEGED, TrustLevel.RESTRICTED}
 UNTRUSTED_LEVELS = {TrustLevel.EXTERNAL}
+SECURE_PROTOCOLS = {"https", "grpc", "mtls", "tls", "ssh"}
+DATA_STORE_TYPES = {"database", "cache", "object_store", "data_warehouse"}
 
 
 def build_graph(architecture: ArchitectureDocument) -> nx.DiGraph:
@@ -44,9 +49,22 @@ def analyze_architecture(architecture: ArchitectureDocument) -> AnalysisResponse
     attack_paths = detect_attack_paths(graph)
     identity_findings = detect_identity_findings(graph)
     escalation_findings = detect_privilege_escalations(graph, attack_paths)
-    report = build_report(attack_paths, identity_findings, escalation_findings)
+    data_exposure_findings = detect_data_exposure(graph)
+    lateral_movement_findings = detect_lateral_movement(graph)
+    misconfiguration_findings = (
+        detect_insecure_channels(graph)
+        + detect_missing_auth_at_entry(graph)
+        + detect_direct_data_access(graph)
+        + detect_single_points_of_failure(graph)
+        + detect_orphan_nodes(graph)
+    )
+    report = build_report(
+        attack_paths, identity_findings, escalation_findings,
+        data_exposure_findings, lateral_movement_findings, misconfiguration_findings,
+    )
     graph_view = build_graph_view(
-        graph, boundaries, attack_paths, identity_findings, escalation_findings
+        graph, boundaries, attack_paths, identity_findings, escalation_findings,
+        data_exposure_findings, lateral_movement_findings, misconfiguration_findings,
     )
     summary = AnalysisSummary(
         node_count=graph.number_of_nodes(),
@@ -55,6 +73,9 @@ def analyze_architecture(architecture: ArchitectureDocument) -> AnalysisResponse
         attack_paths=len(attack_paths),
         identity_findings=len(identity_findings),
         escalation_findings=len(escalation_findings),
+        data_exposure_findings=len(data_exposure_findings),
+        lateral_movement_findings=len(lateral_movement_findings),
+        misconfiguration_findings=len(misconfiguration_findings),
     )
     return AnalysisResponse(
         architecture=architecture,
@@ -63,6 +84,9 @@ def analyze_architecture(architecture: ArchitectureDocument) -> AnalysisResponse
         attack_paths=attack_paths,
         identity_findings=identity_findings,
         escalation_findings=escalation_findings,
+        data_exposure_findings=data_exposure_findings,
+        lateral_movement_findings=lateral_movement_findings,
+        misconfiguration_findings=misconfiguration_findings,
         report=report,
         graph=graph_view,
     )
@@ -261,6 +285,9 @@ def build_report(
     attack_paths: Iterable[AttackPathFinding],
     identity_findings: Iterable[IdentityFinding],
     escalation_findings: Iterable[EscalationFinding],
+    data_exposure_findings: Iterable[DataExposureFinding] = (),
+    lateral_movement_findings: Iterable[LateralMovementFinding] = (),
+    misconfiguration_findings: Iterable[MisconfigurationFinding] = (),
 ) -> list[ReportEntry]:
     report: list[ReportEntry] = []
     for index, path in enumerate(attack_paths, start=1):
@@ -292,6 +319,36 @@ def build_report(
                 path=finding.path,
             )
         )
+
+    for finding in data_exposure_findings:
+        report.append(
+            ReportEntry(
+                title=f"Data Exposure: {finding.source} -> {finding.target}",
+                risk=finding.rationale,
+                recommendation=finding.recommendation,
+                path=[finding.source, finding.target],
+            )
+        )
+
+    for finding in lateral_movement_findings:
+        report.append(
+            ReportEntry(
+                title=f"Lateral Movement Risk ({finding.trust_level.value} zone)",
+                risk=finding.rationale,
+                recommendation=finding.recommendation,
+                path=finding.path,
+            )
+        )
+
+    for finding in misconfiguration_findings:
+        report.append(
+            ReportEntry(
+                title=f"Misconfiguration: {finding.pattern} on {finding.node}",
+                risk=finding.rationale,
+                recommendation=finding.recommendation,
+                path=[finding.node],
+            )
+        )
     return report
 
 
@@ -301,6 +358,9 @@ def build_graph_view(
     attack_paths: Iterable[AttackPathFinding],
     identity_findings: Iterable[IdentityFinding],
     escalation_findings: Iterable[EscalationFinding],
+    data_exposure_findings: Iterable[DataExposureFinding] = (),
+    lateral_movement_findings: Iterable[LateralMovementFinding] = (),
+    misconfiguration_findings: Iterable[MisconfigurationFinding] = (),
 ) -> dict[str, list[GraphNodeView] | list[GraphEdgeView]]:
     attack_node_ids = {node for finding in attack_paths for node in finding.path}
     attack_edges = {
@@ -315,6 +375,14 @@ def build_graph_view(
         for finding in escalation_findings
         for index in range(len(finding.path) - 1)
     }
+    exposure_edges = {(f.source, f.target) for f in data_exposure_findings}
+    lateral_edges: set[tuple[str, str]] = set()
+    lateral_node_ids: set[str] = set()
+    for finding in lateral_movement_findings:
+        for i in range(len(finding.path) - 1):
+            lateral_edges.add((finding.path[i], finding.path[i + 1]))
+        lateral_node_ids.update(finding.path)
+    misconfig_nodes = {f.node for f in misconfiguration_findings}
 
     node_flags: dict[str, set[str]] = {node_id: set() for node_id in graph.nodes}
     for node_id in attack_node_ids:
@@ -322,6 +390,12 @@ def build_graph_view(
     for finding in escalation_findings:
         for node_id in finding.path:
             node_flags[node_id].add("escalation")
+    for node_id in lateral_node_ids:
+        if node_id in node_flags:
+            node_flags[node_id].add("lateral-movement")
+    for node_id in misconfig_nodes:
+        if node_id in node_flags:
+            node_flags[node_id].add("misconfiguration")
 
     nodes = [
         GraphNodeView(
@@ -346,6 +420,10 @@ def build_graph_view(
             flags.add("identity-risk")
         if (source, target) in escalation_edges:
             flags.add("escalation")
+        if (source, target) in exposure_edges:
+            flags.add("data-exposure")
+        if (source, target) in lateral_edges:
+            flags.add("lateral-movement")
         edges.append(
             GraphEdgeView(
                 source=source,
@@ -416,3 +494,223 @@ def dedupe_escalations(findings: Iterable[EscalationFinding]) -> list[Escalation
         seen.add(key)
         deduped.append(finding)
     return deduped
+
+
+# ---------------------------------------------------------------------------
+# New heuristics
+# ---------------------------------------------------------------------------
+
+
+def detect_data_exposure(graph: nx.DiGraph) -> list[DataExposureFinding]:
+    """Sensitive data flowing outward to a lower trust zone."""
+    findings: list[DataExposureFinding] = []
+    for source, target, edge_data in graph.edges(data=True):
+        source_level = TrustLevel(graph.nodes[source]["trust_level"])
+        target_level = TrustLevel(graph.nodes[target]["trust_level"])
+        outward = TRUST_ORDER[source_level] > TRUST_ORDER[target_level]
+        if not outward:
+            continue
+
+        classification = edge_data.get("data_classification")
+        if classification:
+            findings.append(
+                DataExposureFinding(
+                    source=source,
+                    target=target,
+                    severity="high" if target_level == TrustLevel.EXTERNAL else "medium",
+                    rationale=(
+                        f"Data classified as '{classification}' flows from {source} "
+                        f"({source_level.value}) to {target} ({target_level.value}), "
+                        "crossing outward into a lower trust zone."
+                    ),
+                    recommendation="Encrypt or redact sensitive fields before crossing trust boundaries outward.",
+                )
+            )
+        elif target_level == TrustLevel.EXTERNAL and source_level in SENSITIVE_LEVELS:
+            findings.append(
+                DataExposureFinding(
+                    source=source,
+                    target=target,
+                    severity="high",
+                    rationale=(
+                        f"A {source_level.value} component ({source}) sends data directly "
+                        f"to an external component ({target}) without declared data classification."
+                    ),
+                    recommendation="Classify outbound data, apply egress filtering, and avoid exposing internal state.",
+                )
+            )
+    return findings
+
+
+def detect_insecure_channels(graph: nx.DiGraph) -> list[MisconfigurationFinding]:
+    """Edges crossing trust boundaries over unencrypted or unspecified protocols."""
+    findings: list[MisconfigurationFinding] = []
+    for source, target, edge_data in graph.edges(data=True):
+        source_level = TrustLevel(graph.nodes[source]["trust_level"])
+        target_level = TrustLevel(graph.nodes[target]["trust_level"])
+        if source_level == target_level:
+            continue
+        protocol = (edge_data.get("protocol") or "").lower()
+        if protocol and protocol in SECURE_PROTOCOLS:
+            continue
+        channel_desc = f"'{protocol}'" if protocol else "no declared protocol"
+        findings.append(
+            MisconfigurationFinding(
+                node=source,
+                pattern="insecure_channel",
+                severity="high" if TrustLevel.EXTERNAL in (source_level, target_level) else "medium",
+                rationale=(
+                    f"The edge {source} -> {target} crosses a trust boundary using {channel_desc}. "
+                    "Data in transit may be intercepted or tampered with."
+                ),
+                recommendation="Use TLS, mTLS, or an encrypted transport for all cross-boundary communication.",
+            )
+        )
+    return findings
+
+
+def detect_lateral_movement(graph: nx.DiGraph) -> list[LateralMovementFinding]:
+    """Paths of 3+ hops within the same trust level enabling horizontal spread."""
+    findings: list[LateralMovementFinding] = []
+    seen_paths: set[tuple[str, ...]] = set()
+
+    for node_id, node_data in graph.nodes(data=True):
+        level = TrustLevel(node_data["trust_level"])
+        # BFS collecting same-level chains
+        visited: set[str] = set()
+        stack: list[list[str]] = [[node_id]]
+        while stack:
+            path = stack.pop()
+            current = path[-1]
+            if current in visited:
+                continue
+            visited.add(current)
+            for neighbor in graph.successors(current):
+                neighbor_level = TrustLevel(graph.nodes[neighbor]["trust_level"])
+                if neighbor_level != level or neighbor in visited:
+                    continue
+                new_path = path + [neighbor]
+                if len(new_path) >= 3:
+                    key = tuple(new_path)
+                    if key not in seen_paths:
+                        seen_paths.add(key)
+                        findings.append(
+                            LateralMovementFinding(
+                                path=new_path,
+                                trust_level=level,
+                                severity="medium",
+                                rationale=(
+                                    f"A chain of {len(new_path)} components at '{level.value}' "
+                                    f"trust ({' -> '.join(new_path)}) allows lateral "
+                                    "movement within the same zone."
+                                ),
+                                recommendation=(
+                                    "Segment the network within this trust level and apply "
+                                    "micro-segmentation or zero-trust principles."
+                                ),
+                            )
+                        )
+                stack.append(new_path)
+    return findings
+
+
+def detect_single_points_of_failure(graph: nx.DiGraph) -> list[MisconfigurationFinding]:
+    """Nodes with high betweenness centrality — architectural chokepoints."""
+    findings: list[MisconfigurationFinding] = []
+    if graph.number_of_nodes() < 3:
+        return findings
+
+    centrality = nx.betweenness_centrality(graph)
+    if not centrality:
+        return findings
+
+    values = sorted(centrality.values())
+    # Top-quartile threshold, but never flag nodes below 0.25
+    threshold = max(values[len(values) * 3 // 4], 0.25)
+
+    for node_id, score in centrality.items():
+        if score >= threshold:
+            findings.append(
+                MisconfigurationFinding(
+                    node=node_id,
+                    pattern="single_point_of_failure",
+                    severity="medium",
+                    rationale=(
+                        f"{node_id} has a betweenness centrality of {score:.2f}, making it "
+                        "a critical chokepoint. Compromise or failure here impacts many paths."
+                    ),
+                    recommendation="Add redundancy, circuit breakers, or alternative routes to reduce blast radius.",
+                )
+            )
+    return findings
+
+
+def detect_missing_auth_at_entry(graph: nx.DiGraph) -> list[MisconfigurationFinding]:
+    """Public-facing nodes without any authentication mechanism."""
+    findings: list[MisconfigurationFinding] = []
+    for node_id, data in graph.nodes(data=True):
+        is_entry = data.get("exposes_public_endpoint") or data.get("accepts_untrusted_input")
+        if not is_entry:
+            continue
+        if data.get("auth") is not None:
+            continue
+        findings.append(
+            MisconfigurationFinding(
+                node=node_id,
+                pattern="missing_auth_at_entry",
+                severity="high",
+                rationale=(
+                    f"{node_id} accepts untrusted or public traffic but has no "
+                    "authentication mechanism configured."
+                ),
+                recommendation="Add authentication (JWT, API key, OAuth) at the entry point before processing requests.",
+            )
+        )
+    return findings
+
+
+def detect_direct_data_access(graph: nx.DiGraph) -> list[MisconfigurationFinding]:
+    """Low-trust nodes with a direct edge to a database or restricted node."""
+    findings: list[MisconfigurationFinding] = []
+    for source, target, _edge_data in graph.edges(data=True):
+        source_level = TrustLevel(graph.nodes[source]["trust_level"])
+        target_type = graph.nodes[target]["type"]
+        target_level = TrustLevel(graph.nodes[target]["trust_level"])
+        if source_level not in {TrustLevel.EXTERNAL, TrustLevel.INTERNAL}:
+            continue
+        if target_type not in DATA_STORE_TYPES and target_level != TrustLevel.RESTRICTED:
+            continue
+        # Skip if there's an intermediary — this checks *direct* edges only
+        findings.append(
+            MisconfigurationFinding(
+                node=source,
+                pattern="direct_data_access",
+                severity="critical" if source_level == TrustLevel.EXTERNAL else "high",
+                rationale=(
+                    f"{source} ({source_level.value}) has a direct connection to "
+                    f"{target} ({target_type}, {target_level.value}) with no intermediary service."
+                ),
+                recommendation="Route data access through an application tier or API gateway that enforces authorization.",
+            )
+        )
+    return findings
+
+
+def detect_orphan_nodes(graph: nx.DiGraph) -> list[MisconfigurationFinding]:
+    """Nodes with no incoming or outgoing edges — likely incomplete architecture."""
+    findings: list[MisconfigurationFinding] = []
+    for node_id in graph.nodes:
+        if graph.in_degree(node_id) == 0 and graph.out_degree(node_id) == 0:
+            findings.append(
+                MisconfigurationFinding(
+                    node=node_id,
+                    pattern="orphan_node",
+                    severity="low",
+                    rationale=(
+                        f"{node_id} has no connections. It is either unused or the "
+                        "architecture is incomplete."
+                    ),
+                    recommendation="Connect this node to the architecture or remove it if unused.",
+                )
+            )
+    return findings
