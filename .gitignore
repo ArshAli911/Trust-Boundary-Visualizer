@@ -4,4 +4,5 @@ __pycache__/
 backend/.venv/
 frontend/node_modules/
 frontend/dist/
-backend/pytest-cache-files-*/ 
+backend/pytest-cache-files-*/
+frontend/test.mjs
